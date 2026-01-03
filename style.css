@@ -1,8 +1,0 @@
-body { font-family: Arial, sans-serif; background: #000; color: #fff; text-align: center; }
-.container { max-width: 400px; margin: 0 auto; }
-canvas { border: 1px solid #fff; max-width: 100%; height: auto; transform: rotate(90deg); } /* Preview rotado */
-.inputs input, .inputs button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
-.controls button { background: #ff4081; color: white; border: none; padding: 15px; font-size: 18px; cursor: pointer; }
-#lyricsPreview { margin-top: 20px; text-align: left; background: #222; padding: 20px; }
-.lyric-line { font-size: 24px; margin: 10px 0; opacity: 0; transition: all 0.5s; }
-.active { opacity: 1; color: #ff4081; text-shadow: 0 0 10px #ff4081; transform: scale(1.1); } /* Efecto glow + scale */
