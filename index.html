@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LyricFlow - Creador de Videos Musicales</title>
+    <meta name="description" content="Crea videos cortos para Instagram con letras de canciones y efectos visuales.">
+    <!-- COI Service Worker for SharedArrayBuffer support -->
+    <script src="coi-serviceworker.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Control Panel -->
+        <aside class="sidebar">
+            <header class="logo-section">
+                <div class="logo-icon"><i class="fa-solid fa-wave-square"></i></div>
+                <h1>LyricFlow</h1>
+            </header>
+
+            <div class="controls-wrapper">
+                <!-- Step 1: Music & Lyrics -->
+                <div class="control-group">
+                    <h2><i class="fa-solid fa-music"></i> 1. Música y Letra</h2>
+                    
+                    <div class="input-group">
+                        <label for="track-search">Buscar Canción (Automático)</label>
+                        <div class="search-box">
+                            <input type="text" id="track-search" placeholder="Ej: Bad Bunny - Monaco">
+                            <button id="search-btn"><i class="fa-solid fa-search"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="separator"><span>O</span></div>
+
+                    <div class="input-group">
+                        <label for="audio-upload" class="file-upload-btn">
+                            <i class="fa-solid fa-upload"></i> Subir MP3
+                            <input type="file" id="audio-upload" accept="audio/*">
+                        </label>
+                        <span id="file-name" class="file-info">Ningún archivo</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Letra de la canción</label>
+                        <textarea id="lyrics-input" placeholder="La letra aparecerá aquí. Edítala o pégala manualmente..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 2: Visualization -->
+                <div class="control-group">
+                    <h2><i class="fa-solid fa-wand-magic-sparkles"></i> 2. Estilo</h2>
+                    
+                    <div class="style-options">
+                        <div class="style-item active" data-style="neon">
+                            <div class="preview neon">Aa</div>
+                            <span>Neon</span>
+                        </div>
+                        <div class="style-item" data-style="clean">
+                            <div class="preview clean">Aa</div>
+                            <span>Clean</span>
+                        </div>
+                        <div class="style-item" data-style="retro">
+                            <div class="preview retro">Aa</div>
+                            <span>Retro</span>
+                        </div>
+                        <div class="style-item" data-style="kinetic">
+                            <div class="preview kinetic">Aa</div>
+                            <span>Kinetic</span>
+                        </div>
+                    </div>
+
+                    <div class="color-picker-group">
+                        <label>Colores</label>
+                        <div class="colors">
+                            <input type="color" id="bg-color" value="#0f172a">
+                            <input type="color" id="text-color" value="#ffffff">
+                            <input type="color" id="accent-color" value="#10b981">
+                        </div>
+                    </div>
+                    
+                    <div class="range-group">
+                        <label>Tamaño de Fuente</label>
+                        <input type="range" id="font-size" min="20" max="100" value="40">
+                    </div>
+                </div>
+
+                <!-- Step 3: Export -->
+                <div class="control-group">
+                    <h2><i class="fa-solid fa-video"></i> 3. Exportar</h2>
+                    <p class="info-text">Sincroniza la letra tocando ESPACIO o el botón 'Sincronizar' mientras suena la música.</p>
+                    
+                    <div class="action-buttons">
+                        <button id="sync-mode-btn" class="btn primary"><i class="fa-solid fa-fingerprint"></i> Grabar Sincronización</button>
+                        <button id="preview-btn" class="btn secondary"><i class="fa-solid fa-play"></i> Vista Previa</button>
+                        <button id="export-btn" class="btn accent"><i class="fa-solid fa-download"></i> Descargar Video</button>
+                    </div>
+                    <div id="status-msg" class="status-message"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Canvas Area -->
+        <main class="preview-area">
+            <div class="canvas-wrapper">
+                <canvas id="video-canvas" width="1080" height="1920"></canvas>
+                <div class="overlay-controls">
+                    <button id="play-pause-btn" class="control-fab"><i class="fa-solid fa-play"></i></button>
+                    <div class="time-display">00:00 / 01:00</div>
+                </div>
+                
+                <!-- Sync Overlay (Visible only during sync mode) -->
+                <div id="sync-overlay" class="sync-overlay hidden">
+                    <div class="current-word">Presiona TAP para iniciar</div>
+                    <button id="tap-btn" class="tap-button">TAP</button>
+                    <div class="next-line">Próxima: ...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js" type="module"></script>
+</body>
+</html>
