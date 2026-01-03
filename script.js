@@ -545,15 +545,13 @@ function drawWatermark(ctx, w, h) {
     ctx.save();
     ctx.globalAlpha = state.config.watermark.opacity;
 
-    // Resize logic: keep small, e.g. 15% of width
-    const targetW = w * 0.2;
+    // Position: Bottom Center (Below lyrics, above metadata)
+    const targetW = w * 0.25; // Slightly larger for center
     const imgRatio = state.watermarkImage.width / state.watermarkImage.height;
     const targetH = targetW / imgRatio;
 
-    // Position: Top Right with padding
-    const padding = 50;
-    const x = w - targetW - padding;
-    const y = padding;
+    const x = (w - targetW) / 2;
+    const y = h * 0.75; // 75% down the screen
 
     ctx.drawImage(state.watermarkImage, x, y, targetW, targetH);
     ctx.restore();
