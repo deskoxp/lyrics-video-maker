@@ -162,13 +162,43 @@
                                 <input type="color" id="accent-color" value="#00f3ff">
                             </div>
                             <div class="color-input">
-                                <label>Sombra</label>
-                                <input type="color" id="shadow-color" value="#bc13fe">
+                                <label>Partículas</label>
+                                <input type="color" id="particle-color" value="#ffe400">
                             </div>
                         </div>
+                        <div class="color-row">
+                            <div class="color-input" style="flex: 0 0 100%;">
+                                <label>Sombra / Brillo</label>
+                                <input type="color" id="shadow-color" value="#bc13fe" style="width:100%">
+                            </div>
+                        </div>
+
                         <div class="range-group">
-                            <label>Tamaño</label>
+                            <label>Tamaño Letra</label>
                             <input type="range" id="font-size" min="20" max="120" value="50">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Información y Marca</h3>
+                        <div class="input-group">
+                            <label>Créditos</label>
+                            <input type="text" id="meta-artist" placeholder="Artista" style="margin-bottom: 0.5rem">
+                            <input type="text" id="meta-song" placeholder="Canción">
+                        </div>
+                        <div class="input-group">
+                            <label for="watermark-upload" class="file-card">
+                                <div class="icon"><i class="fa-solid fa-stamp"></i></div>
+                                <div class="text">
+                                    <span class="title">Sello de Agua (PNG)</span>
+                                    <span class="subtitle" id="wm-file-name">Opcional</span>
+                                </div>
+                                <input type="file" id="watermark-upload" accept="image/png,image/jpeg">
+                            </label>
+                            <div class="range-group" style="margin-top: 0.5rem">
+                                <label>Opacidad Sello</label>
+                                <input type="range" id="wm-opacity" min="10" max="100" value="80">
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,8 @@
 /**
- * LyricFlow PRO - Video Engine v2
- * - Text Wrapping
- * - Dual Language Support
+ * LyricFlow PRO - Video Engine v2.5
+ * - Separate Particle Color
+ * - Metadata & Watermark
+ * - Improved Layout Logic
  */
 
 const state = {
@@ -11,15 +12,16 @@ const state = {
     backgroundImage: null,
     bgType: 'none',
 
+    watermarkImage: null, // New
+
     // Data
     lyrics: [],
-    translation: [], // New: Translation lines
-    syncedLyrics: [], // [{ text, trans, time }]
+    translation: [],
+    syncedLyrics: [],
 
     // Playback
     isPlaying: false,
     isSyncing: false,
-    startTime: 0,
 
     // Settings
     config: {
@@ -29,10 +31,14 @@ const state = {
             animation: 'slide-up',
             color: '#ffffff',
             accent: '#00f3ff',
+            width: 85, // Max width percentage
             shadow: '#bc13fe',
+            particleColor: '#ffe400', // New
             size: 50
         },
-        fx: { particles: false, vignette: true, grain: false }
+        meta: { artist: '', song: '' }, // New
+        watermark: { opacity: 0.8 }, // New
+        fx: { particles: true, vignette: true, grain: false }
     },
 
     // Rendering
@@ -45,7 +51,6 @@ const state = {
     recordedChunks: []
 };
 
-// DOM Elements cache
 const dom = {};
 
 function init() {
@@ -55,7 +60,8 @@ function init() {
         'bg-blur', 'bg-darken', 'bg-scale',
         'val-blur', 'val-darken', 'val-scale',
         'fx-particles', 'fx-vignette', 'fx-grain',
-        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'font-size',
+        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'font-size',
+        'meta-artist', 'meta-song', 'watermark-upload', 'wm-file-name', 'wm-opacity',
         'sync-mode-btn', 'preview-btn', 'export-btn', 'play-pause-btn', 'status-msg',
         'video-canvas', 'sync-overlay', 'tap-btn',
         'sync-current-text', 'sync-next-text', 'progress-fill'
@@ -68,7 +74,6 @@ function init() {
     state.canvas = dom['video-canvas'];
     state.ctx = state.canvas.getContext('2d');
 
-    // BG Video Setup
     state.backgroundVideo.loop = true;
     state.backgroundVideo.muted = true;
     state.backgroundVideo.crossOrigin = "anonymous";
@@ -130,6 +135,17 @@ function setupEvents() {
         }
     });
 
+    // Watermark Input
+    dom['watermark-upload'].addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        dom['wm-file-name'].textContent = file.name;
+        const img = new Image();
+        img.src = url;
+        state.watermarkImage = img;
+    });
+
     // Configuration Inputs
     const updateConfig = () => {
         state.config.bg.blur = parseInt(dom['bg-blur'].value);
@@ -144,14 +160,20 @@ function setupEvents() {
         state.config.text.color = dom['text-color'].value;
         state.config.text.accent = dom['accent-color'].value;
         state.config.text.shadow = dom['shadow-color'].value;
+        state.config.text.particleColor = dom['particle-color'].value;
         state.config.text.size = parseInt(dom['font-size'].value);
+
+        state.config.meta.artist = dom['meta-artist'].value;
+        state.config.meta.song = dom['meta-song'].value;
+        state.config.watermark.opacity = parseInt(dom['wm-opacity'].value) / 100;
 
         state.config.fx.particles = dom['fx-particles'].checked;
         state.config.fx.vignette = dom['fx-vignette'].checked;
         state.config.fx.grain = dom['fx-grain'].checked;
     };
 
-    ['bg-blur', 'bg-darken', 'bg-scale', 'text-animation', 'text-color', 'accent-color', 'shadow-color', 'font-size']
+    // Bind generic inputs
+    ['bg-blur', 'bg-darken', 'bg-scale', 'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'font-size', 'meta-artist', 'meta-song', 'wm-opacity']
         .forEach(id => dom[id].addEventListener('input', updateConfig));
     ['fx-particles', 'fx-vignette', 'fx-grain']
         .forEach(id => dom[id].addEventListener('change', updateConfig));
@@ -160,6 +182,15 @@ function setupEvents() {
     dom['search-btn'].addEventListener('click', async () => {
         const query = dom['track-search'].value;
         if (!query) return;
+
+        // Auto-fill meta
+        if (query.includes('-')) {
+            const [artist, song] = query.split('-').map(s => s.trim());
+            dom['meta-artist'].value = artist;
+            dom['meta-song'].value = song;
+            updateConfig();
+        }
+
         const [artist, title] = query.split('-').map(s => s.trim());
         if (!artist) { dom['status-msg'].textContent = "Formato: Artista - Canción"; return; }
 
@@ -201,12 +232,9 @@ function parseAllLyrics() {
     state.lyrics = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
     state.translation = dom['lyrics-translation'].value.split('\n').filter(l => l.trim() !== '');
 
-    // We rebuild syncedLyrics preserving times if possible, or reset if length changes significantly?
-    // User might edit while syncing. Let's just update text if length matches.
-
     const count = state.lyrics.length;
+    // Resize syncedLyrics if necessary
     if (state.syncedLyrics.length !== count) {
-        // Reset or Resize
         const oldSync = state.syncedLyrics;
         state.syncedLyrics = new Array(count).fill(0).map((_, i) => ({
             text: state.lyrics[i],
@@ -214,7 +242,6 @@ function parseAllLyrics() {
             time: oldSync[i] ? oldSync[i].time : -1
         }));
     } else {
-        // Just update text
         state.syncedLyrics.forEach((item, i) => {
             item.text = state.lyrics[i];
             item.trans = state.translation[i] || '';
@@ -245,7 +272,6 @@ function startSync() {
 
     state.isSyncing = true;
     syncIndex = 0;
-    // Reset times but keep text
     state.syncedLyrics.forEach(l => l.time = -1);
 
     dom['sync-overlay'].classList.remove('hidden');
@@ -261,13 +287,11 @@ function startSync() {
 
 function handleTap() {
     if (!state.isSyncing) return;
-
     const t = state.audio.currentTime;
 
     if (syncIndex < state.syncedLyrics.length) {
         state.syncedLyrics[syncIndex].time = t;
 
-        // UI Feedback
         dom['tap-btn'].style.transform = "scale(0.9)";
         setTimeout(() => dom['tap-btn'].style.transform = "scale(1)", 100);
 
@@ -295,12 +319,10 @@ function endSync() {
 
 function loop() {
     requestAnimationFrame(loop);
-
     const now = state.audio.currentTime;
     if (state.audio.duration) {
         dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
     }
-
     render(now);
 }
 
@@ -328,6 +350,7 @@ function render(time) {
     }
     ctx.restore();
 
+    // Background Darken
     if (cfg.bg.darken > 0) {
         ctx.fillStyle = `rgba(0,0,0, ${cfg.bg.darken / 100})`;
         ctx.fillRect(0, 0, w, h);
@@ -336,10 +359,16 @@ function render(time) {
     // 2. FX
     if (cfg.fx.grain) drawGrain(ctx, w, h);
     if (cfg.fx.vignette) drawVignette(ctx, w, h);
+
+    // Particles (now separate color)
     if (cfg.fx.particles) updateParticles(ctx, w, h);
 
-    // 3. TEXT
+    // 3. TEXT & METADATA
     drawLyricsBlock(ctx, w, h, time);
+    drawMetadata(ctx, w, h);
+
+    // 4. WATERMARK
+    if (state.watermarkImage) drawWatermark(ctx, w, h);
 }
 
 function drawCover(ctx, img, w, h) {
@@ -360,7 +389,6 @@ function drawCover(ctx, img, w, h) {
     ctx.filter = 'none';
 }
 
-// -- Text Wrapping Logic --
 function getLines(ctx, text, maxWidth) {
     const words = text.split(" ");
     const lines = [];
@@ -383,7 +411,7 @@ function getLines(ctx, text, maxWidth) {
 function drawLyricsBlock(ctx, w, h, time) {
     const cfg = state.config.text;
 
-    // Find active lyric
+    // Active Lyric Logic
     let idx = -1;
     for (let i = 0; i < state.syncedLyrics.length; i++) {
         if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) idx = i;
@@ -395,36 +423,43 @@ function drawLyricsBlock(ctx, w, h, time) {
     const lineObj = state.syncedLyrics[idx];
     const duration = time - lineObj.time;
 
-    // Setup Main Font
+    // Font Setup
     let fontName = 'Outfit';
     if (cfg.style === 'serif') fontName = 'serif';
     if (cfg.style === 'arcade') fontName = 'Courier New';
 
-    const fontSizeMain = cfg.size * 2; // scale for canvas
+    const fontSizeMain = cfg.size * 2;
     const fontSizeTrans = fontSizeMain * 0.6;
-    const maxWidth = w * 0.85; // 85% of screen width
+    const maxWidth = w * 0.85;
 
-    // Calculate layout
+    // Calcs
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
     const mainLines = getLines(ctx, lineObj.text, maxWidth);
 
     let transLines = [];
     if (lineObj.trans) {
-        ctx.font = `italic 400 ${fontSizeTrans}px "${fontName}"`;
+        ctx.font = `italic 500 ${fontSizeTrans}px "${fontName}"`;
+        // Ensure translation also respects max width
         transLines = getLines(ctx, lineObj.trans, maxWidth);
     }
 
-    const lineHeightMain = fontSizeMain * 1.2;
+    const lineHeightMain = fontSizeMain * 1.25;
     const lineHeightTrans = fontSizeTrans * 1.4;
-    const gap = 30;
+    const gap = 40;
 
+    // Calculate total height of the text block to center it
     const totalHeight = (mainLines.length * lineHeightMain) +
-        (lineObj.trans ? (gap + transLines.length * lineHeightTrans) : 0);
+        (transLines.length > 0 ? (gap + (transLines.length * lineHeightTrans) - lineHeightTrans) : 0);
+    // Note: subtracted one lineHeightTrans because the loop usually adds Y AFTER text, or we can just simplify logic.
+    // Let's standardise: draw at Y. Next line at Y + height.
+    // So total height is roughly sum of all line heights.
 
-    // Vertical Center Base
-    let startY = (h / 2) - (totalHeight / 2) + (lineHeightMain / 2);
+    const realTotalHeight = (mainLines.length * lineHeightMain) +
+        (transLines.length > 0 ? gap + (transLines.length * lineHeightTrans) : 0);
 
-    // --- ANIMATION ---
+    let startY = (h / 2) - (realTotalHeight / 2) + (lineHeightMain * 0.7); // Adjustment for baseline
+
+    // Animation
     let alpha = 1;
     let yAnim = 0;
     let scale = 1;
@@ -438,50 +473,89 @@ function drawLyricsBlock(ctx, w, h, time) {
         if (cfg.animation === 'zoom-in') { scale = 0.8 + (0.2 * ease); alpha = ease; }
     }
 
-    // --- DRAWING ---
+    // Draw
     ctx.save();
     ctx.translate(w / 2, startY + yAnim);
     ctx.scale(scale, scale);
     ctx.globalAlpha = alpha;
     ctx.textAlign = 'center';
 
-    // 1. Draw Main Text
+    // Main Text
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
     if (cfg.style === 'neon') {
-        ctx.shadowColor = cfg.accent; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color;
+        ctx.shadowColor = cfg.shadow; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color;
     } else if (cfg.style === 'bold') {
-        ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.strokeText(lineObj.text, 0, 0);
+        ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6;
         ctx.fillStyle = cfg.color;
     } else {
         ctx.fillStyle = cfg.color; ctx.shadowBlur = 0;
     }
 
-    if (cfg.style === 'bold') {
-        mainLines.forEach((t, i) => {
-            ctx.fillStyle = cfg.color;
-            ctx.strokeText(t, 0, i * lineHeightMain);
-            ctx.fillText(t, 0, i * lineHeightMain);
-        });
-    } else {
-        mainLines.forEach((t, i) => {
-            ctx.fillText(t, 0, i * lineHeightMain);
-        });
-    }
+    mainLines.forEach((t, i) => {
+        if (cfg.style === 'bold') ctx.strokeText(t, 0, i * lineHeightMain);
+        ctx.fillText(t, 0, i * lineHeightMain);
+    });
 
-    // 2. Draw Translation
-    if (lineObj.trans) {
-        // Offset Y
-        let transY = (mainLines.length * lineHeightMain) - (lineHeightMain / 2) + gap + (lineHeightTrans / 2);
+    // Translation
+    if (transLines.length > 0) {
+        // Start drawing translation AFTER all main lines
+        const transStartY = (mainLines.length * lineHeightMain) + gap;
 
         ctx.font = `italic 500 ${fontSizeTrans}px "${fontName}"`;
-        ctx.fillStyle = cfg.accent;
-        ctx.shadowBlur = 0; // Clean look for translation
+        ctx.fillStyle = cfg.accent; // Translation uses Accent color
+        ctx.shadowBlur = 0; // No glow for translation usually
+        if (cfg.style === 'bold') ctx.strokeStyle = 'rgba(0,0,0,0.5)';
 
         transLines.forEach((t, i) => {
-            ctx.fillText(t, 0, transY + (i * lineHeightTrans));
+            const ly = transStartY + (i * lineHeightTrans);
+            if (cfg.style === 'bold') { ctx.lineWidth = 3; ctx.strokeText(t, 0, ly); }
+            ctx.fillText(t, 0, ly);
         });
     }
 
+    ctx.restore();
+}
+
+function drawMetadata(ctx, w, h) {
+    if (!state.config.meta.artist && !state.config.meta.song) return;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.shadowBlur = 0;
+
+    const yPos = h - 150;
+
+    if (state.config.meta.song) {
+        ctx.font = '700 40px "Outfit"';
+        ctx.fillText(state.config.meta.song, w / 2, yPos);
+    }
+
+    if (state.config.meta.artist) {
+        ctx.font = '400 30px "Outfit"';
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(state.config.meta.artist, w / 2, yPos + 45);
+    }
+    ctx.restore();
+}
+
+function drawWatermark(ctx, w, h) {
+    if (!state.watermarkImage) return;
+
+    ctx.save();
+    ctx.globalAlpha = state.config.watermark.opacity;
+
+    // Resize logic: keep small, e.g. 15% of width
+    const targetW = w * 0.2;
+    const imgRatio = state.watermarkImage.width / state.watermarkImage.height;
+    const targetH = targetW / imgRatio;
+
+    // Position: Top Right with padding
+    const padding = 50;
+    const x = w - targetW - padding;
+    const y = padding;
+
+    ctx.drawImage(state.watermarkImage, x, y, targetW, targetH);
     ctx.restore();
 }
 
@@ -494,8 +568,6 @@ function drawVignette(ctx, w, h) {
 }
 
 function drawGrain(ctx, w, h) {
-    // Optimized grain: draw less rects, utilize alpha noise better if possible.
-    // Or just simple noise overlay.
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
     for (let i = 0; i < 150; i++) {
         ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
@@ -509,7 +581,10 @@ function updateParticles(ctx, w, h) {
             v: 1 + Math.random() * 3, s: 1 + Math.random() * 4
         });
     }
-    ctx.fillStyle = state.config.text.accent;
+
+    // USE NEW PARTICLE COLOR
+    ctx.fillStyle = state.config.text.particleColor;
+
     ctx.globalAlpha = 0.5;
     state.particles.forEach(p => {
         p.y -= p.v;
@@ -519,13 +594,10 @@ function updateParticles(ctx, w, h) {
     ctx.globalAlpha = 1;
 }
 
-// --- EXPORT ---
-
 function exportVideo() {
     if (!state.audio.src) return alert("Nada que exportar");
 
-    dom['status-msg'].textContent = "Iniciando grabación...";
-    // Reset Everything
+    dom['status-msg'].textContent = "Iniciando grabación... NO CAMBIES DE PESTAÑA";
     state.audio.pause();
     state.audio.currentTime = 0;
     if (state.bgType === 'video') state.backgroundVideo.currentTime = 0;
@@ -544,11 +616,12 @@ function exportVideo() {
 
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     mediaRecorder.onstop = () => {
+        const title = state.config.meta.song ? state.config.meta.song.replace(/\s+/g, '-') : 'lyric-video';
         const blob = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `lyricflow-dual.webm`;
+        a.download = `${title}.webm`;
         a.click();
         dom['status-msg'].textContent = "¡Video Exportado!";
     };
