@@ -1,36 +1,53 @@
-# LyricFlow - Creador de Videos para Instagram
+# LyricFlow Pro - Estudio de Video Musical
 
-Una aplicación web profesional para crear videos con letras sincronizadas (Lyric Videos) lista para GitHub Pages.
+La herramienta definitiva para crear videos de letras (Lyric Videos) para Instagram Reels, TikTok y Shorts. Funciona 100% en el navegador gracias a tecnologías modernas de renderizado.
 
-## Características
-- 🎵 **Sincronización Manual**: Toca el ritmo para sincronizar la letra perfectamente.
-- 🎨 **Estilos Visuales**: Neon, Retro, Kinetic y Clean.
-- 📱 **Formato Vertical**: Optimizado para Instagram Reels / TikTok (9:16).
-- 💾 **Exportación Local**: Genera el video en tu navegador sin servidores.
-- 🌑 **Modo Oscuro**: Interfaz moderna y elegante.
+## 🌟 Nuevas Características Pro
 
-## Cómo usar
+### 🎬 Motor de Video
+- **Soporte Multimedia**: Carga **Videos** (MP4, WEBM) o **Imágenes** como fondo dinámico.
+- **Filtros en Tiempo Real**: Aplica desenfoque (Blur) y oscurecimiento para destacar el texto sobre cualquier fondo.
+- **Efecto Ken Burns**: Zoom suave y escala para dar vida a imágenes estáticas.
 
-1. **Subir Audio**: Carga tu archivo MP3.
-2. **Obtener Letra**: Escribe "Artista - Canción" y busca la letra (o pégala manualmente).
-3. **Estilo**: Elige tu efecto visual y colores.
-4. **Sincronizar**:
-   - Ve a la pestaña **Exportar**.
-   - Dale a **Grabar Sincronización**.
-   - Escucha la música y presiona **ESPACIO** o el botón **TAP** cada vez que empiece una nueva línea de la letra.
-5. **Exportar**: Dale a **Descargar Video** y espera a que termine la canción.
+### 🎨 Efectos Visuales (VFX)
+- **Partículas**: Sistema de partículas flotantes que reaccionan a los colores del tema.
+- **Ruido de Película**: Efecto granulado para un look cinematográfico.
+- **Viñeta**: Enfoque central automático.
 
-## Instalación en GitHub Pages
+### ✍️ Animaciones de Texto Profesionales
+- **Entradas Dinámicas**: 
+  - *Fade*: Suave aparición.
+  - *Slide Up*: Deslizamiento elegante desde abajo.
+  - *Zoom In*: Impacto visual.
+  - *Typewriter*: Efecto de escritura estilo máquina.
+- **Estilos Premium**: Neon, Bold (Impacto), Elegant (Serifa), Arcade (Retro).
 
-1. Sube estos archivos a un repositorio de GitHub:
-   - `index.html`
-   - `style.css`
-   - `script.js`
-   - `coi-serviceworker.js`
-2. Ve a **Settings** > **Pages**.
-3. En "Branch", selecciona `main` (o `master`) y carpeta `/root`.
-4. ¡Listo! Tu web estará online en unos minutos.
+## 🚀 Guía Rápida
 
-## Nota sobre Compatibilidad
-El video se exporta en formato **WEBM**. 
-- Para **Instagram**: Se recomienda convertirlo a MP4 usando cualquier conversor gratuito o software de edición si Instagram no acepta el archivo directamente desde tu móvil.
+1. **Pestaña Audio** 🎵:
+   - Sube tu archivo MP3.
+   - Busca la letra automáticamente o pégala.
+
+2. **Pestaña Fondo** 🖼️:
+   - Sube un video corto o una imagen de alta calidad.
+   - Ajusta el *Blur* si la letra no se lee bien.
+   - Usa *Oscuridad* para aumentar el contraste.
+
+3. **Pestaña Texto** 🅰️:
+   - Elige un estilo que combine con la canción.
+   - Selecciona una animación de entrada.
+   - Personaliza los colores (Texto, Acento y Brillo).
+
+4. **Pestaña Exportar** 💾:
+   - **IMPORTANTE**: Activa **"Grabar Sincronización"**.
+   - Escucha la música y presiona **TAP** (o Espacio) justo cuando empiece cada linea.
+   - Al terminar, revisa con "Vista Previa".
+   - Finalmente, **"Renderizar Video"** para bajar el archivo.
+
+## 🛠️ Instalación (GitHub Pages)
+
+Simplemente sube todos los archivos al repositorio. No requiere compilación.
+Asegúrate de que `coi-serviceworker.js` esté en la misma carpeta que `index.html` para un rendimiento óptimo al exportar.
+
+---
+*Creado con ❤️ para creadores de contenido.*

@@ -221,9 +221,26 @@ textarea,
 
 textarea {
     resize: vertical;
-    min-height: 120px;
+    min-height: 100px;
     font-size: 0.85rem;
     line-height: 1.5;
+}
+
+.separator-text {
+    margin: 1rem 0 0.5rem 0;
+    font-size: 0.8rem;
+    color: var(--primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.separator-text::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
 }
 
 .styled-select {
