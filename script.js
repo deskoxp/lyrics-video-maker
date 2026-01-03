@@ -1,472 +1,538 @@
 /**
- * LyricFlow - Core Logic
+ * LyricFlow PRO - Video Engine
  */
 
-// State
 const state = {
+    // Media
     audio: new Audio(),
-    audioContext: null,
-    analyser: null,
-    source: null,
+    backgroundVideo: document.createElement('video'), // Hidden video element
+    backgroundImage: null, // Image object
+    bgType: 'none', // 'video', 'image', 'none'
 
-    lyrics: [], // Array of strings (lines)
-    syncedLyrics: [], // Array of { text: string, time: number }
+    // Data
+    lyrics: [],
+    syncedLyrics: [], // [{ text, time }]
 
+    // Playback
     isPlaying: false,
-    isRecording: false,
     isSyncing: false,
-
-    currentLineIndex: 0,
     startTime: 0,
-    pausedAt: 0,
 
-    style: 'neon',
-    bgColor: '#0f172a',
-    textColor: '#ffffff',
-    accentColor: '#10b981',
-    fontSize: 40,
+    // Settings
+    config: {
+        bg: { blur: 0, darken: 50, scale: 1 },
+        text: {
+            style: 'neon',
+            animation: 'fade',
+            color: '#ffffff',
+            accent: '#00f3ff',
+            shadow: '#bc13fe',
+            size: 50
+        },
+        fx: { particles: false, vignette: true, grain: false }
+    },
 
-    mediaRecorder: null,
-    recordedChunks: [],
-
+    // Rendering
     canvas: null,
     ctx: null,
+    particles: [],
 
-    lastFrameTime: 0,
-    animationId: null
+    // Recorder
+    mediaRecorder: null,
+    recordedChunks: []
 };
 
 // DOM Elements
-const elements = {
-    audioUpload: document.getElementById('audio-upload'),
-    fileName: document.getElementById('file-name'),
-    searchBtn: document.getElementById('search-btn'),
-    trackSearch: document.getElementById('track-search'),
-    lyricsInput: document.getElementById('lyrics-input'),
+const dom = {};
 
-    playPauseBtn: document.getElementById('play-pause-btn'),
-    syncModeBtn: document.getElementById('sync-mode-btn'),
-    tapBtn: document.getElementById('tap-btn'),
-    previewBtn: document.getElementById('preview-btn'),
-    exportBtn: document.getElementById('export-btn'),
-
-    styleItems: document.querySelectorAll('.style-item'),
-    bgColorInput: document.getElementById('bg-color'),
-    textColorInput: document.getElementById('text-color'),
-    accentColorInput: document.getElementById('accent-color'),
-    fontSizeInput: document.getElementById('font-size'),
-
-    canvas: document.getElementById('video-canvas'),
-    timeDisplay: document.querySelector('.time-display'),
-    syncOverlay: document.getElementById('sync-overlay'),
-    currentSyncWord: document.querySelector('.current-word'),
-    nextLineSync: document.querySelector('.next-line'),
-    statusMsg: document.getElementById('status-msg')
-};
-
-// Initialize
 function init() {
-    state.canvas = elements.canvas;
-    state.ctx = state.canvas.getContext('2d');
+    // Cache DOM
+    const ids = [
+        'audio-upload', 'file-name', 'bg-upload', 'bg-file-name',
+        'track-search', 'search-btn', 'lyrics-input',
+        'bg-blur', 'bg-darken', 'bg-scale',
+        'val-blur', 'val-darken', 'val-scale',
+        'fx-particles', 'fx-vignette', 'fx-grain',
+        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'font-size',
+        'sync-mode-btn', 'preview-btn', 'export-btn', 'play-pause-btn', 'status-msg',
+        'video-canvas', 'sync-overlay', 'tap-btn', 'video-canvas',
+        'sync-current-text', 'sync-next-text', 'progress-fill'
+    ];
+    ids.forEach(id => dom[id] = document.getElementById(id));
 
-    // Set initial canvas size relative logic (internal resolution is fixed 1080x1920)
-    // CSS handles display size.
-
-    setupEventListeners();
-    animate();
-}
-
-function setupEventListeners() {
-    // Audio Upload
-    elements.audioUpload.addEventListener('change', handleAudioUpload);
-
-    // Lyrics Search
-    elements.searchBtn.addEventListener('click', handleLyricsSearch);
-
-    // Lyrics Input
-    elements.lyricsInput.addEventListener('input', (e) => {
-        state.lyrics = e.target.value.split('\n').filter(line => line.trim() !== '');
-        // Reset sync if lyrics change significantly
-        if (state.syncedLyrics.length !== state.lyrics.length) {
-            state.syncedLyrics = state.lyrics.map(text => ({ text, time: 0 }));
-        }
-    });
-
-    // Styles
-    elements.styleItems.forEach(item => {
-        item.addEventListener('click', () => {
-            elements.styleItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            state.style = item.dataset.style;
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
         });
     });
 
-    // Colors & Fonts
-    elements.bgColorInput.addEventListener('input', (e) => state.bgColor = e.target.value);
-    elements.textColorInput.addEventListener('input', (e) => state.textColor = e.target.value);
-    elements.accentColorInput.addEventListener('input', (e) => state.accentColor = e.target.value);
-    elements.fontSizeInput.addEventListener('input', (e) => state.fontSize = parseInt(e.target.value));
-
-    // Controls
-    elements.playPauseBtn.addEventListener('click', togglePlay);
-    elements.syncModeBtn.addEventListener('click', startSyncMode);
-    elements.tapBtn.addEventListener('click', handleSyncTap);
-    elements.previewBtn.addEventListener('click', previewVideo);
-    elements.exportBtn.addEventListener('click', exportVideo);
-
-    // Spacebar for sync tap
-    document.addEventListener('keydown', (e) => {
-        if (state.isSyncing && e.code === 'Space') {
-            e.preventDefault();
-            handleSyncTap();
-        }
+    // Style Selectors
+    document.querySelectorAll('.style-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            state.config.text.style = opt.dataset.style;
+        });
     });
 
-    // Audio ended
-    state.audio.addEventListener('ended', () => {
-        state.isPlaying = false;
-        elements.playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-        if (state.isSyncing) stopSyncMode();
-    });
+    state.canvas = dom['video-canvas'];
+    state.ctx = state.canvas.getContext('2d');
+
+    // Setup BG Video
+    state.backgroundVideo.loop = true;
+    state.backgroundVideo.muted = true;
+    state.backgroundVideo.crossOrigin = "anonymous";
+    state.backgroundVideo.playsInline = true;
+
+    setupEvents();
+    requestAnimationFrame(loop);
 }
 
-// --- Logic Functions ---
-
-function handleAudioUpload(e) {
-    const file = e.target.files[0];
-    if (file) {
-        elements.fileName.textContent = file.name;
+function setupEvents() {
+    // Audio
+    dom['audio-upload'].addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         state.audio.src = URL.createObjectURL(file);
-        // Reset
+        dom['file-name'].textContent = file.name;
+        dom['status-msg'].textContent = "Audio cargado.";
+        // Reset sync
         state.syncedLyrics = [];
-        showStatus('Audio cargado. Ahora agrega la letra.');
-    }
-}
+    });
 
-async function handleLyricsSearch() {
-    const query = elements.trackSearch.value;
-    if (!query) return;
+    // Background Input
+    dom['bg-upload'].addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        dom['bg-file-name'].textContent = file.name;
 
-    showStatus('Buscando letra...');
-    // Simple parsing of "Artist - Title"
-    let artist = '', title = query;
-    if (query.includes('-')) {
-        [artist, title] = query.split('-').map(s => s.trim());
-    }
-
-    try {
-        let url = `https://api.lyrics.ovh/v1/${artist}/${title}`;
-        if (!artist) {
-            // Fallback for simple search if needed? The API requires artist.
-            // For now assume user formats correctly or we use a different mechanism.
-            // Let's rely on user Input mostly, this is a helper.
-            showStatus('Formato: "Artista - Cancion"');
-            return;
-        }
-
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (data.lyrics) {
-            elements.lyricsInput.value = data.lyrics;
-            state.lyrics = data.lyrics.split('\n').filter(line => line.trim() !== '');
-            // Initialize sync array
-            state.syncedLyrics = state.lyrics.map(text => ({ text, time: -1 }));
-            showStatus('Letra encontrada!');
+        if (file.type.startsWith('video')) {
+            state.backgroundVideo.src = url;
+            state.bgType = 'video';
+            state.backgroundImage = null;
+            state.backgroundVideo.play(); // Play initially to load texture then pause?
         } else {
-            showStatus('Letra no encontrada. Intenta pegar manualmente.');
+            const img = new Image();
+            img.src = url;
+            state.backgroundImage = img;
+            state.bgType = 'image';
         }
-    } catch (e) {
-        console.error(e);
-        showStatus('Error buscando letra.');
-    }
+    });
+
+    // Settings Inputs (Generic handler for sliders/colors)
+    const updateConfig = () => {
+        state.config.bg.blur = parseInt(dom['bg-blur'].value);
+        state.config.bg.darken = parseInt(dom['bg-darken'].value);
+        state.config.bg.scale = parseInt(dom['bg-scale'].value) / 100;
+
+        dom['val-blur'].innerText = state.config.bg.blur + 'px';
+        dom['val-darken'].innerText = state.config.bg.darken + '%';
+        dom['val-scale'].innerText = Math.round(state.config.bg.scale * 100) + '%';
+
+        state.config.text.animation = dom['text-animation'].value;
+        state.config.text.color = dom['text-color'].value;
+        state.config.text.accent = dom['accent-color'].value;
+        state.config.text.shadow = dom['shadow-color'].value;
+        state.config.text.size = parseInt(dom['font-size'].value);
+
+        state.config.fx.particles = dom['fx-particles'].checked;
+        state.config.fx.vignette = dom['fx-vignette'].checked;
+        state.config.fx.grain = dom['fx-grain'].checked;
+    };
+
+    // Bind all inputs
+    ['bg-blur', 'bg-darken', 'bg-scale', 'text-animation', 'text-color', 'accent-color', 'shadow-color', 'font-size']
+        .forEach(id => dom[id].addEventListener('input', updateConfig));
+    ['fx-particles', 'fx-vignette', 'fx-grain']
+        .forEach(id => dom[id].addEventListener('change', updateConfig));
+
+    // Lyrics Search
+    dom['search-btn'].addEventListener('click', async () => {
+        const query = dom['track-search'].value;
+        if (!query) return;
+        const [artist, title] = query.split('-').map(s => s.trim());
+        if (!artist) { dom['status-msg'].textContent = "Formato: Artista - Canción"; return; }
+
+        dom['status-msg'].textContent = "Buscando letra...";
+        try {
+            const res = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
+            const data = await res.json();
+            if (data.lyrics) {
+                dom['lyrics-input'].value = data.lyrics;
+                parseLyricsFromInput();
+                dom['status-msg'].textContent = "Letra cargada.";
+            } else {
+                dom['status-msg'].textContent = "Letra no encontrada.";
+            }
+        } catch (e) { console.error(e); }
+    });
+
+    dom['lyrics-input'].addEventListener('input', parseLyricsFromInput);
+
+    // Playback Controls
+    dom['play-pause-btn'].addEventListener('click', togglePlay);
+    dom['sync-mode-btn'].addEventListener('click', startSync);
+    dom['tap-btn'].addEventListener('click', handleTap);
+    document.addEventListener('keydown', e => { if (state.isSyncing && e.code === 'Space') handleTap(); });
+
+    dom['preview-btn'].addEventListener('click', () => {
+        state.audio.currentTime = 0;
+        state.audio.play();
+        if (state.bgType === 'video') state.backgroundVideo.play();
+        state.isPlaying = true;
+    });
+
+    dom['export-btn'].addEventListener('click', exportVideo);
 }
 
-// --- Playback & Animation ---
+function parseLyricsFromInput() {
+    state.lyrics = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
+    // If not synced yet, init sync array
+    if (state.syncedLyrics.length !== state.lyrics.length) {
+        state.syncedLyrics = state.lyrics.map(text => ({ text, time: -1 }));
+    }
+}
 
 function togglePlay() {
     if (state.isPlaying) {
         state.audio.pause();
+        if (state.bgType === 'video') state.backgroundVideo.pause();
         state.isPlaying = false;
-        elements.playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-play"></i>';
     } else {
         state.audio.play();
+        if (state.bgType === 'video') state.backgroundVideo.play();
         state.isPlaying = true;
-        elements.playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-pause"></i>';
     }
 }
 
-// --- Sync Mode ---
+// --- SYNC ENGINE ---
+let syncIndex = 0;
 
-function startSyncMode() {
-    if (!state.audio.src) {
-        alert('Sube una canción primero');
-        return;
-    }
-    if (state.lyrics.length === 0) {
-        alert('Agrega la letra primero');
-        return;
-    }
+function startSync() {
+    if (!state.audio.src) return alert("Sube audio primero");
+    if (state.lyrics.length === 0) return alert("Falta letra");
 
     state.isSyncing = true;
-    state.currentLineIndex = 0;
+    syncIndex = 0;
+    state.syncedLyrics.forEach(l => l.time = -1);
 
-    // Clear previous sync
-    state.syncedLyrics = state.lyrics.map(text => ({ text, time: -1 }));
-
-    elements.syncOverlay.classList.remove('hidden');
-    elements.currentSyncWord.textContent = "Presiona TAP al empezar la primera línea";
-    elements.nextLineSync.textContent = state.lyrics[0] || "";
+    dom['sync-overlay'].classList.remove('hidden');
+    dom['sync-current-text'].textContent = "ESPERA...";
 
     state.audio.currentTime = 0;
     state.audio.play();
     state.isPlaying = true;
+
+    // Countdown or just logic? Just Start.
+    dom['sync-current-text'].textContent = "TAP al empezar la frase";
+    dom['sync-next-text'].textContent = state.lyrics[0];
 }
 
-function handleSyncTap() {
+function handleTap() {
     if (!state.isSyncing) return;
 
-    const time = state.audio.currentTime;
+    const t = state.audio.currentTime;
 
-    // Check if we finished
-    if (state.currentLineIndex >= state.syncedLyrics.length) {
-        stopSyncMode();
-        return;
-    }
+    if (syncIndex < state.syncedLyrics.length) {
+        state.syncedLyrics[syncIndex].time = t;
 
-    // Save time for current line
-    state.syncedLyrics[state.currentLineIndex].time = time;
+        // UI Feedback
+        dom['tap-btn'].style.transform = "scale(0.9)";
+        setTimeout(() => dom['tap-btn'].style.transform = "scale(1)", 100);
 
-    // Advance UI
-    state.currentLineIndex++;
+        syncIndex++;
 
-    // Update display
-    if (state.currentLineIndex < state.syncedLyrics.length) {
-        elements.currentSyncWord.textContent = state.syncedLyrics[state.currentLineIndex - 1].text; // Show what we just tapped
-        elements.nextLineSync.textContent = state.syncedLyrics[state.currentLineIndex].text; // Show next
-
-        // Visual feedback
-        elements.tapBtn.style.transform = 'scale(0.95)';
-        setTimeout(() => elements.tapBtn.style.transform = 'scale(1)', 50);
-    } else {
-        elements.currentSyncWord.textContent = "¡Fin!";
-        setTimeout(stopSyncMode, 1000);
+        if (syncIndex < state.syncedLyrics.length) {
+            dom['sync-current-text'].textContent = state.syncedLyrics[syncIndex - 1].text;
+            dom['sync-next-text'].textContent = state.syncedLyrics[syncIndex].text;
+        } else {
+            dom['sync-current-text'].textContent = "¡FIN!";
+            setTimeout(endSync, 1500);
+        }
     }
 }
 
-function stopSyncMode() {
+function endSync() {
     state.isSyncing = false;
-    elements.syncOverlay.classList.add('hidden');
+    dom['sync-overlay'].classList.add('hidden');
     state.audio.pause();
     state.isPlaying = false;
-    showStatus('Sincronización completada.');
+    dom['status-msg'].textContent = "Sincronización guardada.";
 }
 
-// --- Visualizer & Rendering ---
+// --- RENDER ENGINE ---
 
-function animate() {
-    requestAnimationFrame(animate);
+function loop() {
+    requestAnimationFrame(loop);
 
     const now = state.audio.currentTime;
-    const duration = state.audio.duration || 60;
 
-    // Update Time Display
-    let mins = Math.floor(now / 60);
-    let secs = Math.floor(now % 60);
-    elements.timeDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    // Update progress
+    if (state.audio.duration) {
+        dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
+    }
 
-    renderCanvas(now);
+    render(now);
 }
 
-function renderCanvas(time) {
+function render(time) {
     const w = state.canvas.width;
     const h = state.canvas.height;
     const ctx = state.ctx;
+    const cfg = state.config;
 
-    // 1. Background
-    ctx.fillStyle = state.bgColor;
+    // 1. CLEAR & BG
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    // Dynamic background effect based on Audio (simulated for now, real analyser takes more setup)
-    if (state.isPlaying) {
-        // Subtle pulsing
-        const beat = (Math.sin(time * 10) + 1) / 2;
-        ctx.fillStyle = adjustColorOpacity(state.accentColor, 0.1 + (beat * 0.05));
-        ctx.beginPath();
-        ctx.arc(w / 2, h / 2, w * 0.4 + (beat * 50), 0, Math.PI * 2);
-        ctx.fill();
+    // Draw Media
+    ctx.save();
+    if (cfg.bg.scale !== 1) {
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(cfg.bg.scale, cfg.bg.scale);
+        ctx.translate(-w / 2, -h / 2);
     }
 
-    // 2. Lyrics
-    renderLyrics(ctx, time, w, h);
+    if (state.bgType === 'image' && state.backgroundImage) {
+        drawCover(ctx, state.backgroundImage, w, h);
+    } else if (state.bgType === 'video') {
+        // Sync video playback?
+        // Only if exporting or previewing we want strict sync, 
+        // but simple "play when audio plays" is usually enough for loop backgrounds.
+        drawCover(ctx, state.backgroundVideo, w, h);
+    }
+    ctx.restore();
 
-    // 3. Watermark
-    ctx.font = '300 30px "Outfit"';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.textAlign = 'right';
-    ctx.fillText('videolyrics', w - 40, h - 40);
+    // Filters (Blur / Darken)
+    if (cfg.bg.blur > 0) {
+        // Heavy Op? Maybe simplify. Canvas blur is slow. 
+        // For video export it's fine, for realtime maybe lower quality?
+        // Actually filter property is widely supported now.
+        // But ctx.filter resets if we don't clear it.
+        // Complicated with drawImage.
+        // Alternative: Draw semi-transparent black for 'blur' simulation or just css?
+        // No, we need it on canvas.
+        // Let's use simple rect overlay for darken.
+    }
+
+    // Darken Overlay
+    if (cfg.bg.darken > 0) {
+        ctx.fillStyle = `rgba(0,0,0, ${cfg.bg.darken / 100})`;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    // 2. VISUAL FX LAYERS
+    if (cfg.fx.grain) drawGrain(ctx, w, h, time);
+    if (cfg.fx.vignette) drawVignette(ctx, w, h);
+    if (cfg.fx.particles) updateParticles(ctx, w, h, time);
+
+    // 3. LYRICS
+    drawLyrics(ctx, w, h, time);
 }
 
-function renderLyrics(ctx, time, w, h) {
-    if (state.syncedLyrics.length === 0) return;
+function drawCover(ctx, img, w, h) {
+    // Simulate object-fit: cover
+    const imgRatio = (img.videoWidth || img.width) / (img.videoHeight || img.height);
+    const cvsRatio = w / h;
+    let dw, dh, dx, dy;
 
-    // Find active line
-    // We want to show lines that have passed time, but mostly the *current* one.
-    // Simple logic: Find the last line where line.time <= current_time
-
-    let activeIndex = -1;
-    for (let i = 0; i < state.syncedLyrics.length; i++) {
-        if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) {
-            activeIndex = i;
-        } else {
-            break;
-        }
+    if (imgRatio > cvsRatio) {
+        dh = h;
+        dw = h * imgRatio;
+        dx = (w - dw) / 2;
+        dy = 0;
+    } else {
+        dw = w;
+        dh = w / imgRatio;
+        dy = (h - dh) / 2;
+        dx = 0;
     }
 
-    if (activeIndex === -1) return;
+    // Apply blur filter if needed on the drawing context
+    if (state.config.bg.blur > 0) {
+        ctx.filter = `blur(${state.config.bg.blur}px)`;
+    } else {
+        ctx.filter = 'none';
+    }
 
-    const activeLine = state.syncedLyrics[activeIndex];
-    const prevLine = state.syncedLyrics[activeIndex - 1];
-    const nextLine = state.syncedLyrics[activeIndex + 1];
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.filter = 'none'; // Reset
+}
+
+function drawLyrics(ctx, w, h, time) {
+    const cfg = state.config.text;
+
+    // Find Current Index
+    let idx = -1;
+    for (let i = 0; i < state.syncedLyrics.length; i++) {
+        if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) idx = i;
+        else if (state.syncedLyrics[i].time > time) break;
+    }
+
+    if (idx === -1) return;
+
+    const line = state.syncedLyrics[idx];
+    const durationSinceStart = time - line.time;
 
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-    // RENDER: Active Line
-    ctx.font = `700 ${state.fontSize * 2}px "${getFontForStyle(state.style)}"`;
+    // Font Setup
+    let fontName = 'Outfit';
+    if (cfg.style === 'serif') fontName = 'serif';
+    if (cfg.style === 'arcade') fontName = 'Courier New';
+    ctx.font = `800 ${cfg.size * 2}px "${fontName}"`; // *2 because canvas is 1080p
 
-    // Style: NEON
-    if (state.style === 'neon') {
-        ctx.shadowColor = state.accentColor;
+    // Animation Logic
+    let alpha = 1;
+    let yOff = 0;
+    let scale = 1;
+
+    const animDur = 0.5; // seconds
+    if (durationSinceStart < animDur) {
+        const p = durationSinceStart / animDur; // 0 to 1
+        // Ease out quad
+        const ease = p * (2 - p);
+
+        switch (cfg.animation) {
+            case 'fade': alpha = ease; break;
+            case 'slide-up': alpha = ease; yOff = 100 * (1 - ease); break;
+            case 'zoom-in': scale = 0.5 + (0.5 * ease); alpha = ease; break;
+            case 'typewriter':
+                // Handled in text drawing string slice
+                break;
+        }
+    }
+
+    // Set Colors
+    ctx.fillStyle = cfg.color;
+    // Neon glow
+    if (cfg.style === 'neon') {
+        ctx.shadowColor = cfg.accent;
         ctx.shadowBlur = 40;
-        ctx.fillStyle = 'white';
-        // Add text wrap logic if needed, simplied for now to 1 line
-        ctx.fillText(activeLine.text, w / 2, h / 2);
+    } else if (cfg.style === 'bold') {
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'black';
+        ctx.strokeText(line.text, w / 2, h / 2 + yOff);
+    } else if (cfg.style === 'arcade') {
+        ctx.shadowColor = cfg.shadow;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+        ctx.shadowBlur = 0;
+    } else {
         ctx.shadowBlur = 0;
     }
-    // Style: KINETIC
-    else if (state.style === 'kinetic') {
-        const beat = (Math.sin(time * 20));
-        ctx.save();
-        ctx.translate(w / 2, h / 2);
-        ctx.rotate(beat * 0.02);
-        ctx.scale(1 + Math.abs(beat) * 0.05, 1 + Math.abs(beat) * 0.05);
-        ctx.fillStyle = state.textColor;
-        ctx.fillText(activeLine.text, 0, 0);
-        ctx.restore();
-    }
-    // Style: RETRO
-    else if (state.style === 'retro') {
-        ctx.fillStyle = state.accentColor;
-        ctx.fillText(activeLine.text, w / 2 + 5, h / 2 + 5);
-        ctx.fillStyle = state.textColor;
-        ctx.fillText(activeLine.text, w / 2, h / 2);
-    }
-    // Style: CLEAN
-    else {
-        ctx.fillStyle = state.textColor;
-        ctx.fillText(activeLine.text, w / 2, h / 2);
+
+    // Transform
+    ctx.save();
+    ctx.translate(w / 2, h / 2 + yOff);
+    ctx.scale(scale, scale);
+
+    ctx.globalAlpha = alpha;
+
+    let textToDraw = line.text;
+    if (cfg.animation === 'typewriter' && durationSinceStart < 1.5) {
+        const len = Math.floor(line.text.length * (durationSinceStart / 1.5));
+        textToDraw = line.text.substring(0, len);
     }
 
-    // RENDER: Next/Prev lines (Faded)
-    ctx.font = `400 ${state.fontSize}px "${getFontForStyle(state.style)}"`;
-    ctx.fillStyle = adjustColorOpacity(state.textColor, 0.3);
+    ctx.fillText(textToDraw, 0, 0);
+    ctx.restore();
 
-    /*
-    if (nextLine && nextLine.time !== -1) {
-        ctx.fillText(nextLine.text, w/2, h/2 + 150);
+    ctx.globalAlpha = 1;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+}
+
+// --- FX ---
+
+function drawVignette(ctx, w, h) {
+    const grad = ctx.createRadialGradient(w / 2, h / 2, w / 3, w / 2, h / 2, w);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.8)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+}
+
+function drawGrain(ctx, w, h, time) {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    // Fast noise approximation: actually drawing noise image is better.
+    // For procedure: draw random dots
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i < 100; i++) {
+        ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
     }
-    */
 }
 
-// --- Utils ---
+function updateParticles(ctx, w, h, time) {
+    if (state.particles.length < 50) {
+        state.particles.push({
+            x: Math.random() * w,
+            y: h + 10,
+            v: 1 + Math.random() * 3,
+            s: 1 + Math.random() * 4
+        });
+    }
 
-function getFontForStyle(style) {
-    if (style === 'retro') return 'Space Grotesk';
-    return 'Outfit';
+    ctx.fillStyle = state.config.text.accent;
+    state.particles.forEach(p => {
+        p.y -= p.v;
+        if (p.y < -10) p.y = h + 10;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+        ctx.fill();
+    });
 }
 
-function adjustColorOpacity(hex, opacity) {
-    let tempHex = hex.replace('#', '');
-    let r = parseInt(tempHex.substring(0, 2), 16);
-    let g = parseInt(tempHex.substring(2, 4), 16);
-    let b = parseInt(tempHex.substring(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
-// --- Export Logic ---
-
-function previewVideo() {
-    state.audio.currentTime = 0;
-    state.audio.play();
-    state.isPlaying = true;
-}
+// --- EXPORT ---
 
 function exportVideo() {
-    if (!state.audio.src) return;
+    if (!state.audio.src) return alert("Nada que exportar");
 
-    showStatus("Preparando exportación...");
+    dom['status-msg'].textContent = "Iniciando grabación...";
     state.audio.pause();
     state.audio.currentTime = 0;
-    state.isPlaying = false;
+    if (state.bgType === 'video') state.backgroundVideo.currentTime = 0;
 
-    // Setup MediaRecorder
-    const stream = state.canvas.captureStream(30); // 30 FPS
+    const stream = state.canvas.captureStream(30);
 
-    // Create Audio Pipeline
-    // To mix audio into the recorded video, we need Web Audio API
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const actx = new AudioContext();
+    // Audio Mix
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
     const dest = actx.createMediaStreamDestination();
-    const sourceNode = actx.createMediaElementSource(state.audio);
-    sourceNode.connect(dest);
-    sourceNode.connect(actx.destination); // Also play to speakers
+    const source = actx.createMediaElementSource(state.audio);
+    source.connect(dest);
+    source.connect(actx.destination);
 
-    // Add audio track to stream
-    const audioTrack = dest.stream.getAudioTracks()[0];
-    stream.addTrack(audioTrack);
+    stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-    state.mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-    });
+    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+    const chunks = [];
 
-    state.recordedChunks = [];
-    state.mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) state.recordedChunks.push(e.data);
-    };
-
-    state.mediaRecorder.onstop = () => {
-        showStatus("Generando archivo...");
-        const blob = new Blob(state.recordedChunks, { type: 'video/webm' });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
-
         const a = document.createElement('a');
-        a.style.display = 'none';
         a.href = url;
-        a.download = 'lyric-video.webm';
-        document.body.appendChild(a);
+        a.download = `video-lyric-pro.webm`;
         a.click();
-        window.URL.revokeObjectURL(url);
-        showStatus("¡Descarga lista! (" + blob.size + " bytes)");
-
-        // Cleanup audio graph to allow normal replay
-        // Note: createMediaElementSource can only be used once per element usually. 
-        // Ideally we keep the graph alive or clone element. Simple Hack: Reload page or warn.
-        // Better: Just leave it connected.
+        dom['status-msg'].textContent = "¡Exportación Exitosa!";
     };
 
-    // Start Recording
-    state.mediaRecorder.start();
+    mediaRecorder.start();
     state.audio.play();
-    state.isPlaying = true;
-    showStatus("Grabando... Espera al final.");
-
-    // Auto stop when audio ends
-    state.audio.onended = () => {
-        if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
-            state.mediaRecorder.stop();
-            state.audio.onended = null; // reset
-        }
-    };
+    if (state.bgType === 'video') state.backgroundVideo.play();
+    state.audio.onended = () => mediaRecorder.stop();
 }
 
 // Start

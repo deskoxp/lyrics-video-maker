@@ -1,135 +1,229 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricFlow - Creador de Videos Musicales</title>
-    <meta name="description" content="Crea videos cortos para Instagram con letras de canciones y efectos visuales.">
+    <title>LyricFlow Pro - Editor de Video</title>
+    <meta name="description" content="Editor profesional de videos con letras para redes sociales.">
     <!-- COI Service Worker for SharedArrayBuffer support -->
     <script src="coi-serviceworker.js"></script>
-    
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;500;700&display=swap"
+        rel="stylesheet">
+
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar / Control Panel -->
         <aside class="sidebar">
             <header class="logo-section">
-                <div class="logo-icon"><i class="fa-solid fa-wave-square"></i></div>
-                <h1>LyricFlow</h1>
+                <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
+                <h1>LyricFlow <span class="pro-badge">PRO</span></h1>
             </header>
 
             <div class="controls-wrapper">
-                <!-- Step 1: Music & Lyrics -->
-                <div class="control-group">
-                    <h2><i class="fa-solid fa-music"></i> 1. Música y Letra</h2>
-                    
-                    <div class="input-group">
-                        <label for="track-search">Buscar Canción (Automático)</label>
-                        <div class="search-box">
-                            <input type="text" id="track-search" placeholder="Ej: Bad Bunny - Monaco">
+
+                <!-- Tabs Navigation -->
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="music"><i class="fa-solid fa-music"></i> Audio</button>
+                    <button class="tab-btn" data-tab="background"><i class="fa-solid fa-image"></i> Fondo</button>
+                    <button class="tab-btn" data-tab="text"><i class="fa-solid fa-font"></i> Texto</button>
+                    <button class="tab-btn" data-tab="export"><i class="fa-solid fa-clapperboard"></i> Exportar</button>
+                </div>
+
+                <!-- TAB: MUSIC & LYRICS -->
+                <div class="tab-content active" id="tab-music">
+                    <div class="control-group">
+                        <h3>Fuente de Audio</h3>
+                        <div class="input-group">
+                            <label for="audio-upload" class="file-card">
+                                <div class="icon"><i class="fa-solid fa-file-audio"></i></div>
+                                <div class="text">
+                                    <span class="title">Subir MP3</span>
+                                    <span class="subtitle" id="file-name">Sin archivo seleccionado</span>
+                                </div>
+                                <input type="file" id="audio-upload" accept="audio/*">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Letras</h3>
+                        <div class="search-box input-with-btn">
+                            <input type="text" id="track-search" placeholder="Artista - Canción">
                             <button id="search-btn"><i class="fa-solid fa-search"></i></button>
                         </div>
-                    </div>
-
-                    <div class="separator"><span>O</span></div>
-
-                    <div class="input-group">
-                        <label for="audio-upload" class="file-upload-btn">
-                            <i class="fa-solid fa-upload"></i> Subir MP3
-                            <input type="file" id="audio-upload" accept="audio/*">
-                        </label>
-                        <span id="file-name" class="file-info">Ningún archivo</span>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Letra de la canción</label>
-                        <textarea id="lyrics-input" placeholder="La letra aparecerá aquí. Edítala o pégala manualmente..."></textarea>
+                        <textarea id="lyrics-input" placeholder="Pega tu letra aquí..."></textarea>
                     </div>
                 </div>
 
-                <!-- Step 2: Visualization -->
-                <div class="control-group">
-                    <h2><i class="fa-solid fa-wand-magic-sparkles"></i> 2. Estilo</h2>
-                    
-                    <div class="style-options">
-                        <div class="style-item active" data-style="neon">
-                            <div class="preview neon">Aa</div>
-                            <span>Neon</span>
-                        </div>
-                        <div class="style-item" data-style="clean">
-                            <div class="preview clean">Aa</div>
-                            <span>Clean</span>
-                        </div>
-                        <div class="style-item" data-style="retro">
-                            <div class="preview retro">Aa</div>
-                            <span>Retro</span>
-                        </div>
-                        <div class="style-item" data-style="kinetic">
-                            <div class="preview kinetic">Aa</div>
-                            <span>Kinetic</span>
+                <!-- TAB: BACKGROUND -->
+                <div class="tab-content" id="tab-background">
+                    <div class="control-group">
+                        <h3>Medio de Fondo</h3>
+                        <div class="input-group">
+                            <label for="bg-upload" class="file-card">
+                                <div class="icon"><i class="fa-solid fa-photo-film"></i></div>
+                                <div class="text">
+                                    <span class="title">Imagen o Video</span>
+                                    <span class="subtitle" id="bg-file-name">Usando color sólido</span>
+                                </div>
+                                <input type="file" id="bg-upload" accept="image/*,video/*">
+                            </label>
                         </div>
                     </div>
 
-                    <div class="color-picker-group">
-                        <label>Colores</label>
-                        <div class="colors">
-                            <input type="color" id="bg-color" value="#0f172a">
-                            <input type="color" id="text-color" value="#ffffff">
-                            <input type="color" id="accent-color" value="#10b981">
+                    <div class="control-group">
+                        <h3>Ajustes de Fondo</h3>
+                        <div class="range-group">
+                            <label>Desenfoque (Blur) <span id="val-blur">0px</span></label>
+                            <input type="range" id="bg-blur" min="0" max="20" value="0">
+                        </div>
+                        <div class="range-group">
+                            <label>Oscuridad (Darken) <span id="val-darken">50%</span></label>
+                            <input type="range" id="bg-darken" min="0" max="90" value="50">
+                        </div>
+                        <div class="range-group">
+                            <label>Escala (Zoom) <span id="val-scale">100%</span></label>
+                            <input type="range" id="bg-scale" min="100" max="150" value="100">
                         </div>
                     </div>
-                    
-                    <div class="range-group">
-                        <label>Tamaño de Fuente</label>
-                        <input type="range" id="font-size" min="20" max="100" value="40">
+
+                    <div class="control-group">
+                        <h3>Efectos Globales</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="fx-particles">
+                                <span class="checkmark"></span>
+                                Partículas
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="fx-vignette" checked>
+                                <span class="checkmark"></span>
+                                Viñeta
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="fx-grain">
+                                <span class="checkmark"></span>
+                                Ruido Films
+                            </label>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Step 3: Export -->
-                <div class="control-group">
-                    <h2><i class="fa-solid fa-video"></i> 3. Exportar</h2>
-                    <p class="info-text">Sincroniza la letra tocando ESPACIO o el botón 'Sincronizar' mientras suena la música.</p>
-                    
-                    <div class="action-buttons">
-                        <button id="sync-mode-btn" class="btn primary"><i class="fa-solid fa-fingerprint"></i> Grabar Sincronización</button>
-                        <button id="preview-btn" class="btn secondary"><i class="fa-solid fa-play"></i> Vista Previa</button>
-                        <button id="export-btn" class="btn accent"><i class="fa-solid fa-download"></i> Descargar Video</button>
+                <!-- TAB: TEXT & STYLES -->
+                <div class="tab-content" id="tab-text">
+                    <div class="control-group">
+                        <h3>Estilo Visual</h3>
+                        <div class="style-grid">
+                            <div class="style-option active" data-style="neon">Neon</div>
+                            <div class="style-option" data-style="bold">Bold</div>
+                            <div class="style-option" data-style="serif">Elegant</div>
+                            <div class="style-option" data-style="arcade">Arcade</div>
+                        </div>
                     </div>
-                    <div id="status-msg" class="status-message"></div>
+
+                    <div class="control-group">
+                        <h3>Animación de Entrada</h3>
+                        <select id="text-animation" class="styled-select">
+                            <option value="fade">Desvanecer (Fade)</option>
+                            <option value="slide-up">Deslizar Arriba</option>
+                            <option value="zoom-in">Zoom In</option>
+                            <option value="typewriter">Máquina de Escribir</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Apariencia</h3>
+                        <div class="color-row">
+                            <div class="color-input">
+                                <label>Texto</label>
+                                <input type="color" id="text-color" value="#ffffff">
+                            </div>
+                            <div class="color-input">
+                                <label>Acento</label>
+                                <input type="color" id="accent-color" value="#00f3ff">
+                            </div>
+                            <div class="color-input">
+                                <label>Sombra</label>
+                                <input type="color" id="shadow-color" value="#bc13fe">
+                            </div>
+                        </div>
+                        <div class="range-group">
+                            <label>Tamaño</label>
+                            <input type="range" id="font-size" min="20" max="120" value="50">
+                        </div>
+                    </div>
                 </div>
+
+                <!-- TAB: EXPORT -->
+                <div class="tab-content" id="tab-export">
+                    <div class="info-box">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>Para sincronizar, presiona "Grabar Sincronización" y toca la tecla <strong>ESPACIO</strong> o
+                            el botón <strong>TAP</strong> al inicio de cada frase.</p>
+                    </div>
+
+                    <div class="sync-controls">
+                        <button id="sync-mode-btn" class="btn primary large-btn">
+                            <i class="fa-solid fa-microphone-lines"></i> Grabar Sincronización
+                        </button>
+                    </div>
+
+                    <div class="export-actions">
+                        <button id="preview-btn" class="btn secondary">
+                            <i class="fa-solid fa-play"></i> Vista Previa
+                        </button>
+                        <button id="export-btn" class="btn accent">
+                            <i class="fa-solid fa-file-export"></i> Renderizar Video
+                        </button>
+                    </div>
+                    <div id="status-msg" class="status-console">Listo para crear.</div>
+                </div>
+
             </div>
         </aside>
 
-        <!-- Main Canvas Area -->
-        <main class="preview-area">
-            <div class="canvas-wrapper">
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <div class="canvas-container">
                 <canvas id="video-canvas" width="1080" height="1920"></canvas>
-                <div class="overlay-controls">
-                    <button id="play-pause-btn" class="control-fab"><i class="fa-solid fa-play"></i></button>
-                    <div class="time-display">00:00 / 01:00</div>
+
+                <!-- Playback Controls Overlay -->
+                <div class="playback-bar">
+                    <button id="play-pause-btn"><i class="fa-solid fa-play"></i></button>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <span class="time-code">00:00</span>
                 </div>
-                
-                <!-- Sync Overlay (Visible only during sync mode) -->
+
+                <!-- Sync Overlay -->
                 <div id="sync-overlay" class="sync-overlay hidden">
-                    <div class="current-word">Presiona TAP para iniciar</div>
-                    <button id="tap-btn" class="tap-button">TAP</button>
-                    <div class="next-line">Próxima: ...</div>
+                    <div class="sync-header">GRABANDO SINCRONIZACIÓN</div>
+                    <div class="sync-target-box">
+                        <div class="sync-prev">...</div>
+                        <div class="sync-current" id="sync-current-text">Presiona TAP para iniciar</div>
+                        <div class="sync-next" id="sync-next-text">Próxima línea...</div>
+                    </div>
+                    <button id="tap-btn" class="tap-huge-btn">TAP</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Scripts -->
     <script src="script.js" type="module"></script>
 </body>
+
 </html>
