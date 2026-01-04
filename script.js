@@ -787,16 +787,32 @@ function exportVideo() {
     state.sourceNode.connect(dest);
 
     stream.addTrack(dest.stream.getAudioTracks()[0]);
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+
+    // Format selection
+    let mimeType = 'video/webm;codecs=vp9';
+    let ext = 'webm';
+
+    if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+        ext = 'mp4';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        mimeType = 'video/webm;codecs=vp9';
+    } else {
+        mimeType = 'video/webm';
+    }
+
+    console.log("Exporting as:", mimeType);
+
+    const mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
     const chunks = [];
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     mediaRecorder.onstop = () => {
         const title = state.config.meta.song ? state.config.meta.song.replace(/\s+/g, '-') : 'lyric-video';
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${title}.webm`;
+        a.download = `${title}.${ext}`;
         a.click();
         dom['status-msg'].textContent = "¡Video Exportado!";
     };
