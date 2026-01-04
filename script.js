@@ -540,25 +540,83 @@ function drawVisualizer(ctx, w, h, avgVol) {
 
 function updateParticles(ctx, w, h, avgVol) {
     const { particleTheme: theme, particleColor: pColor, particleSize: sizeMult, particleSpeed: vMult } = state.config.text;
-    const maxP = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
+
+    // Incrementamos el límite para que se vea más lleno en vertical (1920px)
+    const maxP = (theme === 'fire') ? 150 : (theme === 'stars' ? 100 : 150);
+
+    // Si no hay partículas (inicio o cambio de tema), llenamos la pantalla inicialmente
+    if (state.particles.length === 0 && theme !== 'none') {
+        for (let i = 0; i < maxP; i++) {
+            spawnParticle(theme, w, h, true);
+        }
+    }
+
+    // Spawning constante: si falta gente, añadimos 1 por frame hasta llegar al tope
     if (state.particles.length < maxP) {
-        const p = { x: Math.random() * w, y: h + 50, v: (2 + Math.random() * 3) * vMult, s: (4 + Math.random() * 8) * sizeMult, life: 1, drift: (Math.random() - 0.5) * 2 };
-        if (theme === 'fire') { p.x = (w / 2) + (Math.random() - 0.5) * w * 0.6; p.v = (4 + Math.random() * 5) * vMult; p.s = (10 + Math.random() * 20) * sizeMult; }
-        else if (theme === 'snow') { p.y = -50; p.v = (1 + Math.random() * 2) * vMult; p.s = (3 + Math.random() * 6) * sizeMult; }
-        else if (theme === 'stars') { p.x = Math.random() * w; p.y = Math.random() * h; p.v = 0.2 * vMult; p.s = (2 + Math.random() * 5) * sizeMult; p.life = Math.random() * Math.PI; }
+        spawnParticle(theme, w, h, false);
+    }
+
+    function spawnParticle(type, canvasW, canvasH, randomY = false) {
+        const p = {
+            x: Math.random() * canvasW,
+            y: randomY ? Math.random() * canvasH : (type === 'snow' ? -20 : canvasH + 20),
+            v: (2 + Math.random() * 3) * vMult,
+            s: (4 + Math.random() * 8) * sizeMult,
+            life: 1 + Math.random(),
+            drift: (Math.random() - 0.5) * 2
+        };
+
+        if (type === 'fire') {
+            p.x = (canvasW / 2) + (Math.random() - 0.5) * canvasW * 0.6;
+            p.v = (4 + Math.random() * 5) * vMult;
+            p.s = (10 + Math.random() * 20) * sizeMult;
+        } else if (type === 'stars') {
+            p.y = Math.random() * canvasH;
+            p.v = 0.2 * vMult;
+            p.s = (2 + Math.random() * 5) * sizeMult;
+            p.life = Math.random() * Math.PI;
+        }
         state.particles.push(p);
     }
+
     ctx.fillStyle = pColor;
     for (let i = 0; i < state.particles.length; i++) {
         let p = state.particles[i];
-        if (theme === 'standard') { p.y -= p.v + (avgVol / 255 * 5); p.x += p.drift; ctx.globalAlpha = Math.min(1, Math.max(0.2, p.y / h)); }
-        else if (theme === 'fire') { p.y -= p.v + (avgVol / 255 * 4); p.x += Math.sin(p.y * 0.01 + p.life) * 2; p.s *= 0.96; p.life -= 0.02; ctx.globalAlpha = Math.max(0, p.life); if (p.s < 0.5 || p.life <= 0) { state.particles.splice(i, 1); i--; continue; } }
-        else if (theme === 'snow') { p.y += p.v; p.x += Math.sin(p.y * 0.01); ctx.globalAlpha = 0.8; }
-        else if (theme === 'stars') { p.life += (0.05 + (avgVol / 255 * 0.2)) * vMult; ctx.globalAlpha = 0.3 + Math.abs(Math.sin(p.life)) * 0.7; p.y += p.v; }
+        if (theme === 'standard') {
+            p.y -= p.v + (avgVol / 255 * 5);
+            p.x += p.drift;
+            ctx.globalAlpha = Math.min(0.8, Math.max(0.2, p.y / h));
+        } else if (theme === 'fire') {
+            p.y -= p.v + (avgVol / 255 * 4);
+            p.x += Math.sin(p.y * 0.01 + p.life) * 2;
+            p.s *= 0.96;
+            p.life -= 0.02;
+            ctx.globalAlpha = Math.max(0, p.life);
+            if (p.s < 0.5 || p.life <= 0) { state.particles.splice(i, 1); i--; continue; }
+        } else if (theme === 'snow') {
+            p.y += p.v;
+            p.x += Math.sin(p.y * 0.01);
+            ctx.globalAlpha = 0.8;
+        } else if (theme === 'stars') {
+            p.life += (0.05 + (avgVol / 255 * 0.2)) * vMult;
+            ctx.globalAlpha = 0.3 + Math.abs(Math.sin(p.life)) * 0.7;
+            p.y += p.v;
+        }
+
         if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8);
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
-        if (((theme !== 'fire' && theme !== 'snow') && p.y < -50) || (theme === 'snow' && p.y > h + 50)) { state.particles.splice(i, 1); i--; }
-        else if (theme === 'stars' && p.y > h + 10) { p.y = -10; p.x = Math.random() * w; }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Limpieza de partículas fuera de pantalla
+        if (theme === 'snow') {
+            if (p.y > h + 100) { state.particles.splice(i, 1); i--; }
+        } else if (theme === 'stars') {
+            if (p.y > h) p.y = 0;
+        } else {
+            if (p.y < -100) { state.particles.splice(i, 1); i--; }
+        }
     }
     ctx.globalAlpha = 1;
 }
