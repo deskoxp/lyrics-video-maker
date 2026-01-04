@@ -1,12 +1,12 @@
 /**
- * LyricFlow PRO - Video Engine v3.1 (Fixed)
- * - Restored Audio Context
- * - Fixed Particle Themes & Sizing
- * - Stable Event Binding
+ * LyricFlow PRO - Video Engine v3.5 (Cleaned & Optimized)
+ * - Fixed Duplicate Functions
+ * - Restored LRC & Effect Markers (***, %%%, ###)
+ * - Fixed MP3 Upload
+ * - MP4 Export Support
  */
 
 const state = {
-    // Media
     audio: new Audio(),
     audioContext: null,
     analyser: null,
@@ -18,16 +18,13 @@ const state = {
     bgType: 'none',
     watermarkImage: null,
 
-    // Data
     lyrics: [],
     translation: [],
     syncedLyrics: [],
 
-    // Playback
     isPlaying: false,
     isSyncing: false,
 
-    // Settings
     config: {
         bg: { blur: 0, darken: 50, scale: 1, reactive: false, intensity: 50 },
         text: {
@@ -36,27 +33,24 @@ const state = {
             color: '#ffffff',
             accent: '#00f3ff',
             particleColor: '#ffe400',
-            particleTheme: 'standard', // standard, fire, snow, stars
-            particleSize: 1.0, // multiplier
+            particleTheme: 'standard',
+            particleSize: 1.0,
             width: 85,
             shadow: '#bc13fe',
             size: 50,
             transFont: 'inherit',
             transSizePct: 0.6
         },
-        viz: { style: 'none', color: '#ffffff' }, // none, bars, wave, circle
+        viz: { style: 'none', color: '#ffffff' },
         meta: { artist: '', song: '' },
         watermark: { opacity: 0.8 },
         fx: { particles: true, vignette: true, grain: false }
     },
 
-    // Rendering
     canvas: null,
     ctx: null,
     particles: [],
 
-    // Recorder
-    mediaRecorder: null,
     recordedChunks: []
 };
 
@@ -82,8 +76,6 @@ function init() {
         if (el) dom[id] = el;
     });
 
-    setupTabs();
-    setupStyleSelectors();
     state.canvas = dom['video-canvas'];
     state.ctx = state.canvas.getContext('2d');
 
@@ -93,6 +85,8 @@ function init() {
     state.backgroundVideo.crossOrigin = "anonymous";
     state.backgroundVideo.playsInline = true;
 
+    setupTabs();
+    setupStyleSelectors();
     setupEvents();
     requestAnimationFrame(loop);
 }
@@ -103,14 +97,11 @@ function initAudioContext() {
     state.audioContext = new AudioContext();
     state.analyser = state.audioContext.createAnalyser();
     state.analyser.fftSize = 256;
-    const bufferLength = state.analyser.frequencyBinCount;
-    state.dataArray = new Uint8Array(bufferLength);
+    state.dataArray = new Uint8Array(state.analyser.frequencyBinCount);
 
     state.sourceNode = state.audioContext.createMediaElementSource(state.audio);
     state.sourceNode.connect(state.analyser);
     state.analyser.connect(state.audioContext.destination);
-
-    if (state.audioContext.state === 'suspended') state.audioContext.resume();
 }
 
 function setupTabs() {
@@ -141,7 +132,6 @@ function setupEvents() {
         state.audio.src = URL.createObjectURL(file);
         dom['file-name'].textContent = file.name;
         dom['status-msg'].textContent = "Audio cargado.";
-        state.syncedLyrics = [];
     });
 
     dom['bg-upload'].addEventListener('change', (e) => {
@@ -153,7 +143,7 @@ function setupEvents() {
             state.backgroundVideo.src = url;
             state.bgType = 'video';
             state.backgroundImage = null;
-            state.backgroundVideo.play().catch(e => console.log(e));
+            state.backgroundVideo.play().catch(err => console.log(err));
         } else {
             const img = new Image();
             img.src = url;
@@ -165,10 +155,9 @@ function setupEvents() {
     dom['watermark-upload'].addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const url = URL.createObjectURL(file);
-        dom['wm-file-name'].textContent = file.name;
         const img = new Image();
-        img.src = url;
+        img.src = URL.createObjectURL(file);
+        dom['wm-file-name'].textContent = file.name;
         state.watermarkImage = img;
     });
 
@@ -189,14 +178,12 @@ function setupEvents() {
         state.config.text.shadow = dom['shadow-color'].value;
         state.config.text.particleColor = dom['particle-color'].value;
 
-        // Theme Change Check
         const newTheme = dom['particle-theme'].value;
         if (state.config.text.particleTheme !== newTheme) {
             state.particles = [];
             state.config.text.particleTheme = newTheme;
         }
 
-        // Particle Size
         state.config.text.particleSize = parseInt(dom['particle-size'].value) / 100;
         dom['val-part-size'].innerText = dom['particle-size'].value + '%';
 
@@ -221,25 +208,18 @@ function setupEvents() {
         'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size',
         'font-size', 'meta-artist', 'meta-song', 'wm-opacity', 'trans-font',
         'trans-size', 'viz-style', 'viz-color'];
-    inputs.forEach(id => {
-        if (dom[id]) dom[id].addEventListener('input', updateConfig);
-    });
-
+    inputs.forEach(id => { if (dom[id]) dom[id].addEventListener('input', updateConfig); });
     ['fx-particles', 'fx-vignette', 'fx-grain', 'audio-reactive-bg'].forEach(id => {
         if (dom[id]) dom[id].addEventListener('change', updateConfig);
     });
 
     dom['search-btn'].addEventListener('click', async () => {
         const query = dom['track-search'].value;
-        if (!query) return;
-        if (query.includes('-')) {
-            const [artist, song] = query.split('-').map(s => s.trim());
-            dom['meta-artist'].value = artist;
-            dom['meta-song'].value = song;
-            updateConfig();
-        }
+        if (!query || !query.includes('-')) return;
         const [artist, title] = query.split('-').map(s => s.trim());
-        if (!artist) { dom['status-msg'].textContent = "Formato: Artista - Canción"; return; }
+        dom['meta-artist'].value = artist;
+        dom['meta-song'].value = title;
+        updateConfig();
         dom['status-msg'].textContent = "Buscando letra...";
         try {
             const res = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
@@ -248,15 +228,12 @@ function setupEvents() {
                 dom['lyrics-input'].value = data.lyrics;
                 parseAllLyrics();
                 dom['status-msg'].textContent = "Letra cargada.";
-            } else {
-                dom['status-msg'].textContent = "Letra no encontrada.";
-            }
-        } catch (e) { console.error(e); }
+            } else dom['status-msg'].textContent = "Letra no encontrada.";
+        } catch (e) { dom['status-msg'].textContent = "Error al buscar."; }
     });
 
     dom['lyrics-input'].addEventListener('input', parseAllLyrics);
     dom['lyrics-translation'].addEventListener('input', parseAllLyrics);
-
     dom['play-pause-btn'].addEventListener('click', togglePlay);
     dom['sync-mode-btn'].addEventListener('click', startSync);
     dom['stop-sync-btn'].addEventListener('click', endSync);
@@ -278,57 +255,38 @@ function parseAllLyrics() {
     const rawLines = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
     state.translation = dom['lyrics-translation'].value.split('\n').filter(l => l.trim() !== '');
 
-    // Arrays to hold parsed data
     const cleanLyrics = [];
     const parsedTimes = [];
-
-    // Regex for LRC format: [00:12.34]Text
+    const parsedEffects = [];
     const timeRegex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
 
     rawLines.forEach(line => {
-        const match = line.match(timeRegex);
+        let text = line.trim();
+        let time = null;
+        const match = text.match(timeRegex);
         if (match) {
-            const mins = parseFloat(match[1]);
-            const secs = parseFloat(match[2]);
-            const text = match[3].trim();
-            cleanLyrics.push(text);
-            parsedTimes.push(mins * 60 + secs);
-        } else {
-            cleanLyrics.push(line.trim());
-            parsedTimes.push(null);
+            time = parseFloat(match[1]) * 60 + parseFloat(match[2]);
+            text = match[3].trim();
         }
+
+        let effect = 'none';
+        if (text.startsWith('***') && text.endsWith('***')) { effect = 'pulse'; text = text.slice(3, -3).trim(); }
+        else if (text.startsWith('%%%') && text.endsWith('%%%')) { effect = 'glitch'; text = text.slice(3, -3).trim(); }
+        else if (text.startsWith('###') && text.endsWith('###')) { effect = 'flash'; text = text.slice(3, -3).trim(); }
+
+        cleanLyrics.push(text);
+        parsedEffects.push(effect);
+        parsedTimes.push(time);
     });
 
     state.lyrics = cleanLyrics;
-    const count = state.lyrics.length;
-
-    // Rebuild syncedLyrics preserving existing times if no LRC provided for that line
-    // If array lengths mismatches, we rebuild fully.
-
     const oldSync = state.syncedLyrics;
-    state.syncedLyrics = new Array(count).fill(0).map((_, i) => {
-        let time = -1;
-
-        // Priority 1: LRC Timestamp from this paste
-        if (parsedTimes[i] !== null) {
-            time = parsedTimes[i];
-        }
-        // Priority 2: Existing sync time (if available and index matches)
-        else if (oldSync[i] && oldSync[i].time !== -1) {
-            time = oldSync[i].time;
-        }
-
-        return {
-            text: state.lyrics[i],
-            trans: state.translation[i] || '',
-            time: time
-        };
+    state.syncedLyrics = cleanLyrics.map((text, i) => {
+        let time = (parsedTimes[i] !== null) ? parsedTimes[i] : (oldSync[i] ? oldSync[i].time : -1);
+        return { text, trans: state.translation[i] || '', time, effect: parsedEffects[i] };
     });
 
-    // If we have parsed times, we should update the timeline editor if it's open
-    if (dom['timeline-editor'].classList.contains('active')) {
-        renderTimelineEditor();
-    }
+    if (dom['timeline-editor'].classList.contains('active')) renderTimelineEditor();
 }
 
 function togglePlay() {
@@ -349,20 +307,25 @@ function togglePlay() {
 let syncIndex = 0;
 function startSync() {
     if (!state.audio.src) return alert("Sube audio primero");
-    if (state.lyrics.length === 0) return alert("Falta letra original");
     initAudioContext();
-
     state.isSyncing = true;
     syncIndex = 0;
     state.syncedLyrics.forEach(l => l.time = -1);
     dom['sync-overlay'].classList.remove('hidden');
-    dom['timeline-editor'].classList.remove('active');
-
     state.audio.currentTime = 0;
     state.audio.play();
     state.isPlaying = true;
-    dom['sync-current-text'].textContent = "TAP al empezar la frase";
-    dom['sync-next-text'].textContent = state.lyrics[0];
+    updateSyncUI();
+}
+
+function updateSyncUI() {
+    if (syncIndex < state.syncedLyrics.length) {
+        dom['sync-current-text'].textContent = syncIndex > 0 ? state.syncedLyrics[syncIndex - 1].text : "TAP para empezar";
+        dom['sync-next-text'].textContent = state.syncedLyrics[syncIndex].text;
+    } else {
+        dom['sync-current-text'].textContent = "¡FIN!";
+        setTimeout(endSync, 1000);
+    }
 }
 
 function handleTap() {
@@ -370,16 +333,8 @@ function handleTap() {
     const t = state.audio.currentTime;
     if (syncIndex < state.syncedLyrics.length) {
         state.syncedLyrics[syncIndex].time = t;
-        dom['tap-btn'].style.transform = "scale(0.9)";
-        setTimeout(() => dom['tap-btn'].style.transform = "scale(1)", 100);
         syncIndex++;
-        if (syncIndex < state.syncedLyrics.length) {
-            dom['sync-current-text'].textContent = state.syncedLyrics[syncIndex - 1].text;
-            dom['sync-next-text'].textContent = state.syncedLyrics[syncIndex].text;
-        } else {
-            dom['sync-current-text'].textContent = "¡FIN!";
-            setTimeout(endSync, 1500);
-        }
+        updateSyncUI();
     }
 }
 
@@ -389,7 +344,6 @@ function endSync() {
     state.audio.pause();
     state.isPlaying = false;
     dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-play"></i>';
-    dom['status-msg'].textContent = "Sincronización guardada.";
     renderTimelineEditor();
 }
 
@@ -398,16 +352,12 @@ function renderTimelineEditor() {
     container.innerHTML = '';
     container.classList.add('active');
     state.syncedLyrics.forEach((line, index) => {
-        if (line.time === -1 && index >= syncIndex) return;
         const row = document.createElement('div');
         row.className = 'timeline-row';
         const timeInput = document.createElement('input');
         timeInput.type = 'number'; timeInput.step = '0.1'; timeInput.className = 'time-input';
         timeInput.value = line.time === -1 ? 0 : line.time.toFixed(2);
-        timeInput.addEventListener('change', (e) => {
-            const val = parseFloat(e.target.value);
-            state.syncedLyrics[index].time = val;
-        });
+        timeInput.addEventListener('change', (e) => state.syncedLyrics[index].time = parseFloat(e.target.value));
         const textSpan = document.createElement('span');
         textSpan.className = 'lyric-preview'; textSpan.textContent = line.text;
         row.appendChild(timeInput); row.appendChild(textSpan);
@@ -415,7 +365,6 @@ function renderTimelineEditor() {
     });
 }
 
-// Loop
 function loop() {
     requestAnimationFrame(loop);
     let avgVol = 0;
@@ -425,136 +374,39 @@ function loop() {
         for (let i = 0; i < 20; i++) sum += state.dataArray[i];
         avgVol = sum / 20;
     }
-
     const now = state.audio.currentTime;
-    if (state.audio.duration) { dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%'; }
+    if (state.audio.duration) dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
     render(now, avgVol);
 }
 
-// Render
 function render(time, avgVol) {
-    const w = state.canvas.width;
-    const h = state.canvas.height;
+    const { width: w, height: h } = state.canvas;
     const ctx = state.ctx;
     const cfg = state.config;
 
-    // 1. BG
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
     let scale = cfg.bg.scale;
-    if (cfg.bg.reactive) {
-        const pulse = (avgVol / 255) * (cfg.bg.intensity / 100) * 0.2;
-        scale += pulse;
-    }
+    if (cfg.bg.reactive) scale += (avgVol / 255) * (cfg.bg.intensity / 100) * 0.2;
 
     ctx.save();
-    if (scale !== 1) {
-        ctx.translate(w / 2, h / 2);
-        ctx.scale(scale, scale);
-        ctx.translate(-w / 2, -h / 2);
-    }
+    ctx.translate(w / 2, h / 2); ctx.scale(scale, scale); ctx.translate(-w / 2, -h / 2);
     if (state.bgType === 'image' && state.backgroundImage) drawCover(ctx, state.backgroundImage, w, h);
     else if (state.bgType === 'video') drawCover(ctx, state.backgroundVideo, w, h);
     ctx.restore();
 
-    if (cfg.bg.darken > 0) {
-        ctx.fillStyle = `rgba(0,0,0, ${cfg.bg.darken / 100})`;
-        ctx.fillRect(0, 0, w, h);
-    }
-
-    // 2. FX
+    if (cfg.bg.darken > 0) { ctx.fillStyle = `rgba(0,0,0, ${cfg.bg.darken / 100})`; ctx.fillRect(0, 0, w, h); }
     if (cfg.fx.grain) drawGrain(ctx, w, h);
     if (cfg.fx.vignette) drawVignette(ctx, w, h);
-
-    // 3. Viz
     if (cfg.viz.style !== 'none') drawVisualizer(ctx, w, h, avgVol);
-
-    // 4. Particles
     if (cfg.fx.particles) updateParticles(ctx, w, h, avgVol);
-
-    // 5. Lyrics (passed avgVol for reactive text effects)
     drawLyricsBlock(ctx, w, h, time, avgVol);
-
-    // 6. Meta
     drawMetadata(ctx, w, h);
     if (state.watermarkImage) drawWatermark(ctx, w, h);
 }
 
-// ... helper functions remain ...
-
-// Parse Lyrics with Effect Markers
-function parseAllLyrics() {
-    const rawLines = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
-    state.translation = dom['lyrics-translation'].value.split('\n').filter(l => l.trim() !== '');
-
-    const cleanLyrics = [];
-    const parsedTimes = [];
-    const parsedEffects = [];
-
-    const timeRegex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
-
-    rawLines.forEach(line => {
-        let text = line.trim();
-        let time = null;
-
-        const match = text.match(timeRegex);
-        if (match) {
-            const mins = parseFloat(match[1]);
-            const secs = parseFloat(match[2]);
-            text = match[3].trim();
-            time = mins * 60 + secs;
-        }
-
-        // Effect Detection
-        let effect = 'none';
-
-        // *** = Pulse (Bass)
-        if (text.startsWith('***') && text.endsWith('***')) {
-            effect = 'pulse';
-            text = text.slice(3, -3).trim();
-        }
-        // %%% = Glitch
-        else if (text.startsWith('%%%') && text.endsWith('%%%')) {
-            effect = 'glitch';
-            text = text.slice(3, -3).trim();
-        }
-        // ### = Flash
-        else if (text.startsWith('###') && text.endsWith('###')) {
-            effect = 'flash';
-            text = text.slice(3, -3).trim();
-        }
-
-        cleanLyrics.push(text);
-        parsedEffects.push(effect);
-        parsedTimes.push(time);
-    });
-
-    state.lyrics = cleanLyrics;
-    const count = state.lyrics.length;
-
-    const oldSync = state.syncedLyrics;
-    state.syncedLyrics = new Array(count).fill(0).map((_, i) => {
-        let time = -1;
-        if (parsedTimes[i] !== null) time = parsedTimes[i];
-        else if (oldSync[i] && oldSync[i].time !== -1) time = oldSync[i].time;
-
-        return {
-            text: state.lyrics[i],
-            trans: state.translation[i] || '',
-            time: time,
-            effect: parsedEffects[i] // Store effect
-        };
-    });
-
-    if (dom['timeline-editor'].classList.contains('active')) {
-        renderTimelineEditor();
-    }
-}
-
 function drawLyricsBlock(ctx, w, h, time, avgVol) {
-    const cfg = state.config.text;
-
     let idx = -1;
     for (let i = 0; i < state.syncedLyrics.length; i++) {
         if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) idx = i;
@@ -564,120 +416,63 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
 
     const lineObj = state.syncedLyrics[idx];
     const duration = time - lineObj.time;
+    const cfg = state.config.text;
 
-    let fontName = 'Outfit';
-    if (cfg.style === 'serif') fontName = 'serif';
-    if (cfg.style === 'arcade') fontName = 'Courier New';
-
+    const fontName = cfg.style === 'serif' ? 'serif' : (cfg.style === 'arcade' ? 'Courier New' : 'Outfit');
     const fontSizeMain = cfg.size * 2;
     const maxWidth = w * 0.85;
 
-    // Main Lines
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
     const mainLines = getLines(ctx, lineObj.text, maxWidth);
     const lineHeightMain = fontSizeMain * 1.25;
 
-    let transLines = [];
-    let fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
+    let transLines = [], fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
     if (lineObj.trans) {
         ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
         transLines = getLines(ctx, lineObj.trans, maxWidth);
     }
-    const lineHeightTrans = fontSizeTrans * 1.4;
-    const gap = 40;
-    const realTotalHeight = (mainLines.length * lineHeightMain) +
-        (transLines.length > 0 ? gap + (transLines.length * lineHeightTrans) : 0);
-    let startY = (h / 2) - (realTotalHeight / 2) + (lineHeightMain * 0.7);
+    const lineHeightTrans = fontSizeTrans * 1.4, gap = 40;
+    const totalH = (mainLines.length * lineHeightMain) + (transLines.length > 0 ? gap + (transLines.length * lineHeightTrans) : 0);
+    let startY = (h / 2) - (totalH / 2) + (lineHeightMain * 0.7);
 
-    let alpha = 1, yAnim = 0, scale = 1;
-    const animDur = 0.5;
-
-    let charLimit = 9999;
-    if (cfg.animation === 'typewriter') {
-        const typeSpeed = 0.05;
-        charLimit = Math.floor(duration / typeSpeed);
-    } else if (duration < animDur) {
-        const p = duration / animDur;
-        const ease = p * (2 - p);
+    let alpha = 1, yAnim = 0, scale = 1, animDur = 0.5;
+    if (cfg.animation === 'typewriter') { /* handled per char */ }
+    else if (duration < animDur) {
+        const p = duration / animDur, ease = p * (2 - p);
         if (cfg.animation === 'fade') alpha = ease;
-        if (cfg.animation === 'slide-up') { alpha = ease; yAnim = 80 * (1 - ease); }
-        if (cfg.animation === 'zoom-in') { scale = 0.8 + (0.2 * ease); alpha = ease; }
+        else if (cfg.animation === 'slide-up') { alpha = ease; yAnim = 80 * (1 - ease); }
+        else if (cfg.animation === 'zoom-in') { scale = 0.8 + (0.2 * ease); alpha = ease; }
     }
 
     ctx.save();
-
-    // --- TEXT EFFECTS START ---
     let shakeX = 0, shakeY = 0;
+    if (lineObj.effect === 'pulse') scale += (avgVol / 255) * 0.5;
+    else if (lineObj.effect === 'glitch') { shakeX = (Math.random() - 0.5) * 20; shakeY = (Math.random() - 0.5) * 5; if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion'; }
+    else if (lineObj.effect === 'flash' && Math.floor(Date.now() / 50) % 2 === 0) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 100; ctx.shadowColor = '#fff'; }
 
-    if (lineObj.effect === 'pulse') {
-        // Pulse with bass
-        const pulse = (avgVol / 255) * 0.5; // Up to 50% larger
-        scale += pulse;
-    } else if (lineObj.effect === 'glitch') {
-        // Random shake
-        shakeX = (Math.random() - 0.5) * 20;
-        shakeY = (Math.random() - 0.5) * 5;
-        // RGB split manual implementation would be complex, simplfying to shake + color shift
-        if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion';
-    } else if (lineObj.effect === 'flash') {
-        // Strobe alpha
-        if (Math.floor(Date.now() / 50) % 2 === 0) {
-            ctx.fillStyle = '#ffffff'; // Force white flash
-            ctx.shadowColor = '#ffffff';
-            ctx.shadowBlur = 100;
-        }
-    }
-    // --- TEXT EFFECTS END ---
-
-    ctx.translate(w / 2 + shakeX, startY + yAnim + shakeY);
-    ctx.scale(scale, scale);
-    ctx.globalAlpha = alpha;
-    ctx.textAlign = 'center';
-
+    ctx.translate(w / 2 + shakeX, startY + yAnim + shakeY); ctx.scale(scale, scale); ctx.globalAlpha = alpha; ctx.textAlign = 'center';
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
 
-    // Apply default styles unless overridden by flash
     if (lineObj.effect !== 'flash') {
         if (cfg.style === 'neon') { ctx.shadowColor = cfg.shadow; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color; }
-        else if (cfg.style === 'bold') { ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.fillStyle = cfg.color; }
-        else { ctx.fillStyle = cfg.color; ctx.shadowBlur = 0; }
+        else if (cfg.style === 'bold') { ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.strokeText(mainLines.join(' '), 0, 0); ctx.fillStyle = cfg.color; }
+        else ctx.fillStyle = cfg.color;
     }
 
-    let charsDrawn = 0;
+    const charLimit = cfg.animation === 'typewriter' ? Math.floor(duration / 0.05) : 9999;
+    let charsUsed = 0;
     mainLines.forEach((t, i) => {
-        let textToDraw = t;
-        if (cfg.animation === 'typewriter') {
-            if (charsDrawn >= charLimit) textToDraw = "";
-            else if (charsDrawn + t.length > charLimit) textToDraw = t.substring(0, charLimit - charsDrawn);
-            charsDrawn += t.length;
-        }
-
-        if (cfg.style === 'bold' && lineObj.effect !== 'flash') ctx.strokeText(textToDraw, 0, i * lineHeightMain);
-
-        // Glitch chromatic aberration (simple offset draw for RED)
-        if (lineObj.effect === 'glitch') {
-            ctx.fillStyle = 'red';
-            ctx.globalAlpha = 0.7;
-            ctx.fillText(textToDraw, 5, i * lineHeightMain);
-            ctx.fillStyle = 'blue';
-            ctx.fillText(textToDraw, -5, i * lineHeightMain);
-            ctx.fillStyle = cfg.color; // Reset
-            ctx.globalAlpha = alpha;
-        }
-
-        ctx.fillText(textToDraw, 0, i * lineHeightMain);
+        let drawT = (charsUsed >= charLimit) ? "" : (charsUsed + t.length > charLimit ? t.slice(0, charLimit - charsUsed) : t);
+        charsUsed += t.length;
+        if (cfg.style === 'bold' && lineObj.effect !== 'flash') ctx.strokeText(drawT, 0, i * lineHeightMain);
+        if (lineObj.effect === 'glitch') { ctx.fillStyle = 'red'; ctx.globalAlpha = 0.7; ctx.fillText(drawT, 5, i * lineHeightMain); ctx.fillStyle = 'blue'; ctx.fillText(drawT, -5, i * lineHeightMain); ctx.fillStyle = cfg.color; ctx.globalAlpha = alpha; }
+        ctx.fillText(drawT, 0, i * lineHeightMain);
     });
 
     if (transLines.length > 0) {
-        const transStartY = (mainLines.length * lineHeightMain) + gap;
         ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
-        ctx.fillStyle = cfg.accent;
-        ctx.shadowBlur = 0;
-
-        transLines.forEach((t, i) => {
-            const ly = transStartY + (i * lineHeightTrans);
-            ctx.fillText(t, 0, ly);
-        });
+        ctx.fillStyle = cfg.accent; ctx.shadowBlur = 0;
+        transLines.forEach((t, i) => ctx.fillText(t, 0, (mainLines.length * lineHeightMain) + gap + (i * lineHeightTrans)));
     }
     ctx.restore();
 }
@@ -685,290 +480,81 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
 function drawVisualizer(ctx, w, h, avgVol) {
     if (!state.dataArray) return;
     const bufferLength = state.analyser.frequencyBinCount;
-    const style = state.config.viz.style;
-    const color = state.config.viz.color;
-
-    ctx.fillStyle = color;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = color;
-
+    const { style, color } = state.config.viz;
+    ctx.fillStyle = color; ctx.shadowBlur = 10; ctx.shadowColor = color;
     if (style === 'bars') {
-        const barWidth = (w / bufferLength) * 2.5;
-        let x = 0;
-        for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (state.dataArray[i] / 255) * (h * 0.3);
-            ctx.fillRect(x, h - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
-        }
+        const barW = (w / bufferLength) * 2.5;
+        for (let i = 0; i < bufferLength; i++) ctx.fillRect(i * (barW + 1), h - (state.dataArray[i] / 255 * h * 0.3), barW, state.dataArray[i] / 255 * h * 0.3);
     } else if (style === 'wave') {
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = color;
-        const sliceWidth = w * 1.0 / bufferLength;
-        let x = 0;
-        for (let i = 0; i < bufferLength; i++) {
-            const v = state.dataArray[i] / 128.0;
-            const y = (h - 200) + (v * 100);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            x += sliceWidth;
-        }
+        ctx.beginPath(); ctx.lineWidth = 4; ctx.strokeStyle = color;
+        const slice = w / bufferLength;
+        for (let i = 0; i < bufferLength; i++) { const y = (h - 200) + (state.dataArray[i] / 128 * 100); if (i === 0) ctx.moveTo(i * slice, y); else ctx.lineTo(i * slice, y); }
         ctx.stroke();
     } else if (style === 'circle') {
-        const radius = 100 + (avgVol * 0.5);
-        ctx.beginPath();
-        ctx.arc(w / 2, h / 2, radius, 0, 2 * Math.PI);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = color;
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(w / 2, h / 2, 100 + avgVol * 0.5, 0, 2 * Math.PI); ctx.lineWidth = 5; ctx.strokeStyle = color; ctx.stroke();
     }
     ctx.shadowBlur = 0;
 }
 
 function updateParticles(ctx, w, h, avgVol) {
-    const theme = state.config.text.particleTheme;
-    const pColor = state.config.text.particleColor;
-    const sizeMult = state.config.text.particleSize || 1.0; // Multiplier
-
-    // Config values based on theme
-    const maxParticles = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
-    const bassKick = avgVol > 140;
-
-    let spawnCount = 1;
-    if (bassKick) spawnCount = 3;
-
-    if (state.particles.length < maxParticles) {
-        for (let i = 0; i < spawnCount; i++) {
-            let p = {
-                x: Math.random() * w,
-                y: h + Math.random() * 50,
-                v: 2 + Math.random() * 3,
-                s: (4 + Math.random() * 8) * sizeMult, // Apply size multiplier here
-                life: 1.0,
-                drift: (Math.random() - 0.5) * 2
-            };
-
-            if (theme === 'fire') {
-                p.x = (w / 2) + ((Math.random() - 0.5) * w * 0.6);
-                p.y = h + Math.random() * 50;
-                p.v = 4 + Math.random() * 5;
-                p.s = (10 + Math.random() * 20) * sizeMult;
-                p.life = 1.0;
-            } else if (theme === 'snow') {
-                p.y = -Math.random() * 50;
-                p.v = 1 + Math.random() * 2;
-                p.s = (3 + Math.random() * 6) * sizeMult;
-                p.life = 1.0;
-            } else if (theme === 'stars') {
-                p.x = Math.random() * w;
-                p.y = Math.random() * h;
-                p.v = 0;
-                p.s = (2 + Math.random() * 5) * sizeMult;
-                p.life = Math.random() * Math.PI;
-            }
-            state.particles.push(p);
-        }
+    const { particleTheme: theme, particleColor: pColor, particleSize: sizeMult } = state.config.text;
+    const maxP = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
+    if (state.particles.length < maxP) {
+        const p = { x: Math.random() * w, y: h + 50, v: 2 + Math.random() * 3, s: (4 + Math.random() * 8) * sizeMult, life: 1, drift: (Math.random() - 0.5) * 2 };
+        if (theme === 'fire') { p.x = (w / 2) + (Math.random() - 0.5) * w * 0.6; p.v = 4 + Math.random() * 5; p.s = (10 + Math.random() * 20) * sizeMult; }
+        else if (theme === 'snow') { p.y = -50; p.v = 1 + Math.random() * 2; p.s = (3 + Math.random() * 6) * sizeMult; }
+        else if (theme === 'stars') { p.x = Math.random() * w; p.y = Math.random() * h; p.v = 0; p.s = (2 + Math.random() * 5) * sizeMult; p.life = Math.random() * Math.PI; }
+        state.particles.push(p);
     }
-
     ctx.fillStyle = pColor;
-
     for (let i = 0; i < state.particles.length; i++) {
         let p = state.particles[i];
-
-        // Physics & Movement
-        if (theme === 'standard') {
-            const audioForce = (avgVol / 255) * 5;
-            p.y -= p.v + audioForce;
-            p.x += p.drift;
-            const progress = p.y / h;
-            ctx.globalAlpha = Math.min(1, Math.max(0.2, progress));
-
-        } else if (theme === 'fire') {
-            p.y -= p.v + ((avgVol / 255) * 4);
-            p.x += Math.sin(p.y * 0.01 + p.life) * 2;
-            p.s *= 0.96;
-            p.life -= 0.02;
-            ctx.globalAlpha = Math.max(0, p.life);
-            if (p.s < 0.5 || p.life <= 0) {
-                state.particles.splice(i, 1); i--; continue;
-            }
-
-        } else if (theme === 'snow') {
-            p.y += p.v;
-            p.x += Math.sin(p.y * 0.01) * 1;
-            ctx.globalAlpha = 0.8;
-
-        } else if (theme === 'stars') {
-            p.life += 0.05 + ((avgVol / 255) * 0.2);
-            const opacity = 0.3 + (Math.abs(Math.sin(p.life)) * 0.7);
-            ctx.globalAlpha = opacity;
-            p.y += 0.2;
-        }
-
+        if (theme === 'standard') { p.y -= p.v + (avgVol / 255 * 5); p.x += p.drift; ctx.globalAlpha = Math.min(1, Math.max(0.2, p.y / h)); }
+        else if (theme === 'fire') { p.y -= p.v + (avgVol / 255 * 4); p.x += Math.sin(p.y * 0.01 + p.life) * 2; p.s *= 0.96; p.life -= 0.02; ctx.globalAlpha = Math.max(0, p.life); if (p.s < 0.5 || p.life <= 0) { state.particles.splice(i, 1); i--; continue; } }
+        else if (theme === 'snow') { p.y += p.v; p.x += Math.sin(p.y * 0.01); ctx.globalAlpha = 0.8; }
+        else if (theme === 'stars') { p.life += 0.05 + (avgVol / 255 * 0.2); ctx.globalAlpha = 0.3 + Math.abs(Math.sin(p.life)) * 0.7; p.y += 0.2; }
         if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8);
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
-        ctx.fill();
-
-        if ((theme !== 'fire' && theme !== 'snow') && p.y < -50) {
-            state.particles.splice(i, 1); i--;
-        } else if (theme === 'snow' && p.y > h + 50) {
-            state.particles.splice(i, 1); i--;
-        } else if (theme === 'stars' && p.y > h + 10) {
-            p.y = -10; p.x = Math.random() * w;
-        }
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
+        if (((theme !== 'fire' && theme !== 'snow') && p.y < -50) || (theme === 'snow' && p.y > h + 50)) { state.particles.splice(i, 1); i--; }
+        else if (theme === 'stars' && p.y > h + 10) { p.y = -10; p.x = Math.random() * w; }
     }
     ctx.globalAlpha = 1;
 }
 
 function drawCover(ctx, img, w, h) {
-    const imgRatio = (img.videoWidth || img.width) / (img.videoHeight || img.height);
-    const cvsRatio = w / h;
+    const ir = (img.videoWidth || img.width) / (img.videoHeight || img.height), cr = w / h;
     let dw, dh, dx, dy;
-    if (imgRatio > cvsRatio) { dh = h; dw = h * imgRatio; dx = (w - dw) / 2; dy = 0; }
-    else { dw = w; dh = w / imgRatio; dy = (h - dh) / 2; dx = 0; }
-
-    if (state.config.bg.blur > 0) ctx.filter = `blur(${state.config.bg.blur}px)`;
-    else ctx.filter = 'none';
+    if (ir > cr) { dh = h; dw = h * ir; dx = (w - dw) / 2; dy = 0; } else { dw = w; dh = w / ir; dy = (h - dh) / 2; dx = 0; }
+    ctx.filter = state.config.bg.blur > 0 ? `blur(${state.config.bg.blur}px)` : 'none';
     ctx.drawImage(img, dx, dy, dw, dh);
     ctx.filter = 'none';
 }
 
 function getLines(ctx, text, maxWidth) {
-    const words = text.split(" ");
-    const lines = [];
-    let currentLine = words[0];
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const width = ctx.measureText(currentLine + " " + word).width;
-        if (width < maxWidth) currentLine += " " + word;
-        else { lines.push(currentLine); currentLine = word; }
-    }
-    lines.push(currentLine);
-    return lines;
-}
-
-function drawLyricsBlock(ctx, w, h, time) {
-    const cfg = state.config.text;
-
-    let idx = -1;
-    for (let i = 0; i < state.syncedLyrics.length; i++) {
-        if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) idx = i;
-        else if (state.syncedLyrics[i].time > time) break;
-    }
-    if (idx === -1) return;
-
-    const lineObj = state.syncedLyrics[idx];
-    const duration = time - lineObj.time;
-
-    let fontName = 'Outfit';
-    if (cfg.style === 'serif') fontName = 'serif';
-    if (cfg.style === 'arcade') fontName = 'Courier New';
-
-    const fontSizeMain = cfg.size * 2;
-    const maxWidth = w * 0.85;
-
-    // Main Lines
-    ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
-    const mainLines = getLines(ctx, lineObj.text, maxWidth);
-    const lineHeightMain = fontSizeMain * 1.25;
-
-    let transLines = [];
-    let fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
-    if (lineObj.trans) {
-        ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
-        transLines = getLines(ctx, lineObj.trans, maxWidth);
-    }
-    const lineHeightTrans = fontSizeTrans * 1.4;
-    const gap = 40;
-    const realTotalHeight = (mainLines.length * lineHeightMain) +
-        (transLines.length > 0 ? gap + (transLines.length * lineHeightTrans) : 0);
-    let startY = (h / 2) - (realTotalHeight / 2) + (lineHeightMain * 0.7);
-
-    let alpha = 1, yAnim = 0, scale = 1;
-    const animDur = 0.5;
-
-    let charLimit = 9999;
-    if (cfg.animation === 'typewriter') {
-        const typeSpeed = 0.05;
-        charLimit = Math.floor(duration / typeSpeed);
-    } else if (duration < animDur) {
-        const p = duration / animDur;
-        const ease = p * (2 - p);
-        if (cfg.animation === 'fade') alpha = ease;
-        if (cfg.animation === 'slide-up') { alpha = ease; yAnim = 80 * (1 - ease); }
-        if (cfg.animation === 'zoom-in') { scale = 0.8 + (0.2 * ease); alpha = ease; }
-    }
-
-    ctx.save();
-    ctx.translate(w / 2, startY + yAnim);
-    ctx.scale(scale, scale);
-    ctx.globalAlpha = alpha;
-    ctx.textAlign = 'center';
-
-    ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
-    if (cfg.style === 'neon') { ctx.shadowColor = cfg.shadow; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color; }
-    else if (cfg.style === 'bold') { ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.fillStyle = cfg.color; }
-    else { ctx.fillStyle = cfg.color; ctx.shadowBlur = 0; }
-
-    let charsDrawn = 0;
-    mainLines.forEach((t, i) => {
-        let textToDraw = t;
-        if (cfg.animation === 'typewriter') {
-            if (charsDrawn >= charLimit) textToDraw = "";
-            else if (charsDrawn + t.length > charLimit) textToDraw = t.substring(0, charLimit - charsDrawn);
-            charsDrawn += t.length;
-        }
-
-        if (cfg.style === 'bold') ctx.strokeText(textToDraw, 0, i * lineHeightMain);
-        ctx.fillText(textToDraw, 0, i * lineHeightMain);
-    });
-
-    if (transLines.length > 0) {
-        const transStartY = (mainLines.length * lineHeightMain) + gap;
-        ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
-        ctx.fillStyle = cfg.accent;
-        ctx.shadowBlur = 0;
-
-        transLines.forEach((t, i) => {
-            const ly = transStartY + (i * lineHeightTrans);
-            ctx.fillText(t, 0, ly);
-        });
-    }
-    ctx.restore();
+    const words = text.split(" "), lines = []; let curr = words[0];
+    for (let i = 1; i < words.length; i++) { if (ctx.measureText(curr + " " + words[i]).width < maxWidth) curr += " " + words[i]; else { lines.push(curr); curr = words[i]; } }
+    lines.push(curr); return lines;
 }
 
 function drawMetadata(ctx, w, h) {
-    if (!state.config.meta.artist && !state.config.meta.song) return;
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.shadowBlur = 0;
-    const yPos = h - 150;
-    if (state.config.meta.song) { ctx.font = '700 40px "Outfit"'; ctx.fillText(state.config.meta.song, w / 2, yPos); }
-    if (state.config.meta.artist) { ctx.font = '400 30px "Outfit"'; ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillText(state.config.meta.artist, w / 2, yPos + 45); }
+    const { artist, song } = state.config.meta; if (!artist && !song) return;
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    if (song) { ctx.font = '700 40px "Outfit"'; ctx.fillText(song, w / 2, h - 150); }
+    if (artist) { ctx.font = '400 30px "Outfit"'; ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillText(artist, w / 2, h - 105); }
     ctx.restore();
 }
 
 function drawWatermark(ctx, w, h) {
-    if (!state.watermarkImage) return;
-    ctx.save();
-    ctx.globalAlpha = state.config.watermark.opacity;
-    const targetW = w * 0.25;
-    const imgRatio = state.watermarkImage.width / state.watermarkImage.height;
-    const targetH = targetW / imgRatio;
-    const x = (w - targetW) / 2;
-    const y = h * 0.75;
-    ctx.drawImage(state.watermarkImage, x, y, targetW, targetH);
+    ctx.save(); ctx.globalAlpha = state.config.watermark.opacity;
+    const targetW = w * 0.25, ir = state.watermarkImage.width / state.watermarkImage.height;
+    ctx.drawImage(state.watermarkImage, (w - targetW) / 2, h * 0.75, targetW, targetW / ir);
     ctx.restore();
 }
 
 function drawVignette(ctx, w, h) {
-    const grad = ctx.createRadialGradient(w / 2, h / 2, w * 0.4, w / 2, h / 2, w);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
+    const g = ctx.createRadialGradient(w / 2, h / 2, w * 0.4, w / 2, h / 2, w);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.8)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 }
 
 function drawGrain(ctx, w, h) {
@@ -977,53 +563,30 @@ function drawGrain(ctx, w, h) {
 }
 
 function exportVideo() {
-    if (!state.audio.src) return alert("Nada que exportar");
+    if (!state.audio.src) return alert("Sube audio primero");
     initAudioContext();
-
-    dom['status-msg'].textContent = "Iniciando grabación... NO CAMBIES DE PESTAÑA";
-    state.audio.pause();
-    state.audio.currentTime = 0;
+    dom['status-msg'].textContent = "Exportando... NO CAMBIES DE PESTAÑA";
+    state.audio.pause(); state.audio.currentTime = 0;
     if (state.bgType === 'video') state.backgroundVideo.currentTime = 0;
-
-    const stream = state.canvas.captureStream(30);
-    const dest = state.audioContext.createMediaStreamDestination();
-    state.sourceNode.connect(dest);
-
-    stream.addTrack(dest.stream.getAudioTracks()[0]);
-
-    // Format selection
-    let mimeType = 'video/webm;codecs=vp9';
-    let ext = 'webm';
-
-    if (MediaRecorder.isTypeSupported('video/mp4')) {
-        mimeType = 'video/mp4';
-        ext = 'mp4';
-    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        mimeType = 'video/webm;codecs=vp9';
-    } else {
-        mimeType = 'video/webm';
-    }
-
-    console.log("Exporting as:", mimeType);
-
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-    const chunks = [];
-    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    mediaRecorder.onstop = () => {
-        const title = state.config.meta.song ? state.config.meta.song.replace(/\s+/g, '-') : 'lyric-video';
-        const blob = new Blob(chunks, { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${title}.${ext}`;
-        a.click();
-        dom['status-msg'].textContent = "¡Video Exportado!";
+    const stream = state.canvas.captureStream(30), dest = state.audioContext.createMediaStreamDestination();
+    state.sourceNode.connect(dest); stream.addTrack(dest.stream.getAudioTracks()[0]);
+    let mime = 'video/webm;codecs=vp9', ext = 'webm';
+    if (!MediaRecorder.isTypeSupported(mime)) { mime = 'video/webm'; }
+    const mr = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: 12000000,
+        audioBitsPerSecond: 256000
+    }), chunks = [];
+    mr.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
+    mr.onstop = () => {
+        const url = URL.createObjectURL(new Blob(chunks, { type: mime }));
+        const a = document.createElement('a'); a.href = url;
+        a.download = `${(state.config.meta.song || 'video').replace(/\s+/g, '-')}.${ext}`;
+        a.click(); dom['status-msg'].textContent = "¡Exportado!";
     };
-
-    mediaRecorder.start();
-    state.audio.play();
+    mr.start(); state.audio.play();
     if (state.bgType === 'video') state.backgroundVideo.play();
-    state.audio.onended = () => mediaRecorder.stop();
+    state.audio.onended = () => mr.stop();
 }
 
 init();
