@@ -483,59 +483,113 @@ function updateParticles(ctx, w, h, avgVol) {
     const theme = state.config.text.particleTheme;
     const pColor = state.config.text.particleColor;
 
-    // Spawn rate based on volume (Kick detection)
-    const threshold = 180; // Bass threshold
-    const spawnRate = avgVol > threshold ? 5 : 1;
+    // Config values based on theme
+    const maxParticles = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
+    const bassKick = avgVol > 140; // Sensitivity threshold via audio
 
-    if (state.particles.length < (theme === 'fire' ? 200 : 100)) {
-        for (let i = 0; i < spawnRate; i++) {
-            let p = { x: Math.random() * w, y: h + 10, v: 1, s: 1, life: 1 };
+    // Spawn Logic
+    // If not full, spawn new particles. 
+    // If bass kick, spawn more to create burst effect but with randomized delay/pos
+    let spawnCount = 1;
+    if (bassKick) spawnCount = 3;
+
+    if (state.particles.length < maxParticles) {
+        for (let i = 0; i < spawnCount; i++) {
+            let p = {
+                x: Math.random() * w,
+                y: h + Math.random() * 50, // Spawn below screen with variance
+                v: 2 + Math.random() * 3,  // Base velocity
+                s: 4 + Math.random() * 8,  // Size (much bigger now)
+                life: 1.0,                 // Life 1.0 -> 0 used for alpha or sizing
+                drift: (Math.random() - 0.5) * 2 // Horizontal drift
+            };
 
             if (theme === 'fire') {
-                p.x = (w / 2) + (Math.random() * 400 - 200);
-                p.y = h / 2 + 100; // start near text area
-                p.v = 2 + Math.random() * 3;
-                p.s = 2 + Math.random() * 5;
+                p.x = (w / 2) + ((Math.random() - 0.5) * w * 0.6); // Concentrated more towards center but wide
+                p.y = h + Math.random() * 50;
+                p.v = 4 + Math.random() * 5; // Fast upward
+                p.s = 10 + Math.random() * 20; // Huge flames
+                p.life = 1.0;
             } else if (theme === 'snow') {
-                p.y = -10;
-                p.v = 1 + Math.random();
+                p.y = -Math.random() * 50; // Start above
+                p.v = 1 + Math.random() * 2; // Fall speed
+                p.s = 3 + Math.random() * 6; // Snowflakes
+                p.life = 1.0;
             } else if (theme === 'stars') {
                 p.x = Math.random() * w;
                 p.y = Math.random() * h;
-                p.s = Math.random() * 3;
-                p.life = Math.random(); // Used for twinkling
+                p.v = 0;
+                p.s = 2 + Math.random() * 5; // Star size
+                p.life = Math.random() * Math.PI; // Phase for twinkling
             }
             state.particles.push(p);
         }
     }
 
+    // Drawing & Update Loop
     ctx.fillStyle = pColor;
 
     for (let i = 0; i < state.particles.length; i++) {
         let p = state.particles[i];
 
+        // Physics & Movement
         if (theme === 'standard') {
-            p.y -= p.v + (avgVol * 0.02); // Speed up with bass
+            // Upward with audio boost
+            // Audio affects speed dynamically but we damp it so it's not jittery
+            const audioForce = (avgVol / 255) * 5;
+            p.y -= p.v + audioForce;
+            p.x += p.drift; // Mild horizontal sway
+
+            // Fade out near top
+            const progress = p.y / h;
+            ctx.globalAlpha = Math.min(1, Math.max(0.2, progress)); // Fade at very top
+
         } else if (theme === 'fire') {
-            p.y -= p.v;
-            p.x += Math.sin(p.y * 0.05); // Wiggle
-            p.s *= 0.98; // Shrink
-            if (p.s < 0.2) { state.particles.splice(i, 1); i--; continue; }
+            // Fire physics: Up fast, shrink, drift
+            p.y -= p.v + ((avgVol / 255) * 4);
+            p.x += Math.sin(p.y * 0.01 + p.life) * 2; // Wavy smoke look
+            p.s *= 0.96; // Shrink fast
+            p.life -= 0.02; // Fade life
+
+            ctx.globalAlpha = Math.max(0, p.life);
+
+            // Kill if too small or invisible
+            if (p.s < 0.5 || p.life <= 0) {
+                state.particles.splice(i, 1); i--; continue;
+            }
+
         } else if (theme === 'snow') {
+            // Falling down
             p.y += p.v;
+            p.x += Math.sin(p.y * 0.01) * 1; // Gentle sway
+            ctx.globalAlpha = 0.8;
+
         } else if (theme === 'stars') {
-            // Twinkle
-            p.life += 0.05;
-            ctx.globalAlpha = Math.abs(Math.sin(p.life));
+            // Stationary but twinkle
+            p.life += 0.05 + ((avgVol / 255) * 0.2); // Twinkle faster with music
+            const opacity = 0.3 + (Math.abs(Math.sin(p.life)) * 0.7);
+            ctx.globalAlpha = opacity;
+
+            // Parallax drift with mouse/time would be cool but keep simple for now
+            // Maybe slight drift?
+            p.y += 0.2;
         }
 
-        if (theme !== 'fire') ctx.globalAlpha = (theme === 'stars' ? ctx.globalAlpha : 0.6);
+        // Draw
+        if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8); // Cap max opacity often better
 
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Reset bounds
-        if (p.y < -20 || p.y > h + 20) {
+        // Reset / Bounds Check
+        if ((theme !== 'fire' && theme !== 'snow') && p.y < -50) {
+            // Standard particles reset to bottom
             state.particles.splice(i, 1); i--;
+        } else if (theme === 'snow' && p.y > h + 50) {
+            state.particles.splice(i, 1); i--;
+        } else if (theme === 'stars' && p.y > h + 10) {
+            p.y = -10; p.x = Math.random() * w; // Wrap stars
         }
     }
     ctx.globalAlpha = 1;
