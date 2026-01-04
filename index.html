@@ -19,6 +19,9 @@
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Anime.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -87,6 +90,37 @@
                                 </div>
                                 <input type="file" id="bg-upload" accept="image/*,video/*">
                             </label>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Reactividad de Audio</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="audio-reactive-bg">
+                                <span class="checkmark"></span>
+                                Fondo Pulsante (Bass)
+                            </label>
+                        </div>
+                        <div class="range-group">
+                            <label>Intensidad de Reacción</label>
+                            <input type="range" id="beat-intensity" min="0" max="100" value="50">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Visualizador de Audio (Waveform)</h3>
+                        <select id="viz-style" class="styled-select">
+                            <option value="none">Desactivado</option>
+                            <option value="bars">Barras Clásicas</option>
+                            <option value="wave">Onda Suave</option>
+                            <option value="circle">Circular</option>
+                        </select>
+                        <div class="color-row" style="margin-top:0.5rem">
+                            <div class="color-input" style="width:100%">
+                                <label>Color Viz</label>
+                                <input type="color" id="viz-color" value="#ffffff">
+                            </div>
                         </div>
                     </div>
 
@@ -161,11 +195,24 @@
                                 <label>Acento</label>
                                 <input type="color" id="accent-color" value="#00f3ff">
                             </div>
-                            <div class="color-input">
-                                <label>Partículas</label>
-                                <input type="color" id="particle-color" value="#ffe400">
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Partículas & Efectos</h3>
+                            <select id="particle-theme" class="styled-select">
+                                <option value="standard">Estándar (Subir)</option>
+                                <option value="fire">Fuego (Intenso)</option>
+                                <option value="snow">Nieve (Caer)</option>
+                                <option value="stars">Estrellas (Parallax)</option>
+                            </select>
+                            <div class="color-row" style="margin-top:0.5rem">
+                                <div class="color-input" style="width:100%">
+                                    <label>Color Partículas</label>
+                                    <input type="color" id="particle-color" value="#ffe400">
+                                </div>
                             </div>
                         </div>
+
                         <div class="color-row">
                             <div class="color-input" style="flex: 0 0 100%;">
                                 <label>Sombra / Brillo</label>
