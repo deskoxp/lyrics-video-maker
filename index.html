@@ -174,8 +174,28 @@
                         </div>
 
                         <div class="range-group">
-                            <label>Tamaño Letra</label>
+                            <label>Tamaño Letra Principal</label>
                             <input type="range" id="font-size" min="20" max="120" value="50">
+                        </div>
+
+                        <!-- Translation Settings -->
+                        <div class="control-group"
+                            style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                            <h3>Ajustes Traducción</h3>
+                            <div class="input-group">
+                                <label>Fuente Traducción</label>
+                                <select id="trans-font" class="styled-select">
+                                    <option value="inherit">Igual a Principal</option>
+                                    <option value="Outfit">Outfit (Moderna)</option>
+                                    <option value="serif">Elegant (Serif)</option>
+                                    <option value="Courier New">Retro (Mono)</option>
+                                    <option value="cursive">Manuscrita</option>
+                                </select>
+                            </div>
+                            <div class="range-group">
+                                <label>Tamaño Traducción <span id="val-trans-size">60%</span></label>
+                                <input type="range" id="trans-size" min="30" max="100" value="60">
+                            </div>
                         </div>
                     </div>
 
