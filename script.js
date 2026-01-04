@@ -1,9 +1,8 @@
 /**
- * LyricFlow PRO - Video Engine v3.0
- * - Audio Analysis (Web Audio API)
- * - Reactive Backgrounds & Visualizers
- * - Advanced Particles (Fire, Snow, Stars)
- * - Typewriter Text Effect
+ * LyricFlow PRO - Video Engine v3.1 (Fixed)
+ * - Restored Audio Context
+ * - Fixed Particle Themes & Sizing
+ * - Stable Event Binding
  */
 
 const state = {
@@ -38,6 +37,7 @@ const state = {
             accent: '#00f3ff',
             particleColor: '#ffe400',
             particleTheme: 'standard', // standard, fire, snow, stars
+            particleSize: 1.0, // multiplier
             width: 85,
             shadow: '#bc13fe',
             size: 50,
@@ -69,8 +69,8 @@ function init() {
         'bg-blur', 'bg-darken', 'bg-scale', 'audio-reactive-bg', 'beat-intensity',
         'val-blur', 'val-darken', 'val-scale',
         'fx-particles', 'fx-vignette', 'fx-grain',
-        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'font-size',
-        'trans-font', 'trans-size', 'val-trans-size',
+        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size', 'font-size',
+        'trans-font', 'trans-size', 'val-trans-size', 'val-part-size',
         'viz-style', 'viz-color',
         'meta-artist', 'meta-song', 'watermark-upload', 'wm-file-name', 'wm-opacity',
         'sync-mode-btn', 'preview-btn', 'export-btn', 'play-pause-btn', 'status-msg',
@@ -110,7 +110,6 @@ function initAudioContext() {
     state.sourceNode.connect(state.analyser);
     state.analyser.connect(state.audioContext.destination);
 
-    // Resume context if needed
     if (state.audioContext.state === 'suspended') state.audioContext.resume();
 }
 
@@ -189,7 +188,18 @@ function setupEvents() {
         state.config.text.accent = dom['accent-color'].value;
         state.config.text.shadow = dom['shadow-color'].value;
         state.config.text.particleColor = dom['particle-color'].value;
-        state.config.text.particleTheme = dom['particle-theme'].value;
+
+        // Theme Change Check
+        const newTheme = dom['particle-theme'].value;
+        if (state.config.text.particleTheme !== newTheme) {
+            state.particles = [];
+            state.config.text.particleTheme = newTheme;
+        }
+
+        // Particle Size
+        state.config.text.particleSize = parseInt(dom['particle-size'].value) / 100;
+        dom['val-part-size'].innerText = dom['particle-size'].value + '%';
+
         state.config.text.size = parseInt(dom['font-size'].value);
         state.config.text.transFont = dom['trans-font'].value;
         state.config.text.transSizePct = parseInt(dom['trans-size'].value) / 100;
@@ -207,9 +217,8 @@ function setupEvents() {
         state.config.fx.grain = dom['fx-grain'].checked;
     };
 
-    // Bind all inputs
     const inputs = ['bg-blur', 'bg-darken', 'bg-scale', 'beat-intensity', 'text-animation',
-        'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme',
+        'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size',
         'font-size', 'meta-artist', 'meta-song', 'wm-opacity', 'trans-font',
         'trans-size', 'viz-style', 'viz-color'];
     inputs.forEach(id => {
@@ -373,7 +382,6 @@ function loop() {
     let avgVol = 0;
     if (state.analyser) {
         state.analyser.getByteFrequencyData(state.dataArray);
-        // Calculate bass energy (approx first 20 bins)
         let sum = 0;
         for (let i = 0; i < 20; i++) sum += state.dataArray[i];
         avgVol = sum / 20;
@@ -390,13 +398,12 @@ function render(time, avgVol) {
     const ctx = state.ctx;
     const cfg = state.config;
 
-    // 1. BACKGROUND & REACTIVITY
+    // 1. BG
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
     let scale = cfg.bg.scale;
     if (cfg.bg.reactive) {
-        // Pulse effect: map volume (0-255) to scale incr
         const pulse = (avgVol / 255) * (cfg.bg.intensity / 100) * 0.2;
         scale += pulse;
     }
@@ -416,20 +423,20 @@ function render(time, avgVol) {
         ctx.fillRect(0, 0, w, h);
     }
 
-    // 2. EFFECTS
+    // 2. FX
     if (cfg.fx.grain) drawGrain(ctx, w, h);
     if (cfg.fx.vignette) drawVignette(ctx, w, h);
 
-    // 3. AUDIO VISUALIZER
+    // 3. Viz
     if (cfg.viz.style !== 'none') drawVisualizer(ctx, w, h, avgVol);
 
-    // 4. PARTICLES (Reactive)
+    // 4. Particles
     if (cfg.fx.particles) updateParticles(ctx, w, h, avgVol);
 
-    // 5. LYRICS
+    // 5. Lyrics
     drawLyricsBlock(ctx, w, h, time);
 
-    // 6. METADATA & OVERLAYS
+    // 6. Meta
     drawMetadata(ctx, w, h);
     if (state.watermarkImage) drawWatermark(ctx, w, h);
 }
@@ -461,14 +468,11 @@ function drawVisualizer(ctx, w, h, avgVol) {
         for (let i = 0; i < bufferLength; i++) {
             const v = state.dataArray[i] / 128.0;
             const y = (h - 200) + (v * 100);
-            // Oscilloscope-ish but using FFT data so it's jumpy, usually better with timeDomainData but we use what we have.
-            // Actually frequency data for wave looks weird, let's just do a simple line
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             x += sliceWidth;
         }
         ctx.stroke();
     } else if (style === 'circle') {
-        // Circular Bass Pulse
         const radius = 100 + (avgVol * 0.5);
         ctx.beginPath();
         ctx.arc(w / 2, h / 2, radius, 0, 2 * Math.PI);
@@ -482,14 +486,12 @@ function drawVisualizer(ctx, w, h, avgVol) {
 function updateParticles(ctx, w, h, avgVol) {
     const theme = state.config.text.particleTheme;
     const pColor = state.config.text.particleColor;
+    const sizeMult = state.config.text.particleSize || 1.0; // Multiplier
 
     // Config values based on theme
     const maxParticles = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
-    const bassKick = avgVol > 140; // Sensitivity threshold via audio
+    const bassKick = avgVol > 140;
 
-    // Spawn Logic
-    // If not full, spawn new particles. 
-    // If bass kick, spawn more to create burst effect but with randomized delay/pos
     let spawnCount = 1;
     if (bassKick) spawnCount = 3;
 
@@ -497,36 +499,35 @@ function updateParticles(ctx, w, h, avgVol) {
         for (let i = 0; i < spawnCount; i++) {
             let p = {
                 x: Math.random() * w,
-                y: h + Math.random() * 50, // Spawn below screen with variance
-                v: 2 + Math.random() * 3,  // Base velocity
-                s: 4 + Math.random() * 8,  // Size (much bigger now)
-                life: 1.0,                 // Life 1.0 -> 0 used for alpha or sizing
-                drift: (Math.random() - 0.5) * 2 // Horizontal drift
+                y: h + Math.random() * 50,
+                v: 2 + Math.random() * 3,
+                s: (4 + Math.random() * 8) * sizeMult, // Apply size multiplier here
+                life: 1.0,
+                drift: (Math.random() - 0.5) * 2
             };
 
             if (theme === 'fire') {
-                p.x = (w / 2) + ((Math.random() - 0.5) * w * 0.6); // Concentrated more towards center but wide
+                p.x = (w / 2) + ((Math.random() - 0.5) * w * 0.6);
                 p.y = h + Math.random() * 50;
-                p.v = 4 + Math.random() * 5; // Fast upward
-                p.s = 10 + Math.random() * 20; // Huge flames
+                p.v = 4 + Math.random() * 5;
+                p.s = (10 + Math.random() * 20) * sizeMult;
                 p.life = 1.0;
             } else if (theme === 'snow') {
-                p.y = -Math.random() * 50; // Start above
-                p.v = 1 + Math.random() * 2; // Fall speed
-                p.s = 3 + Math.random() * 6; // Snowflakes
+                p.y = -Math.random() * 50;
+                p.v = 1 + Math.random() * 2;
+                p.s = (3 + Math.random() * 6) * sizeMult;
                 p.life = 1.0;
             } else if (theme === 'stars') {
                 p.x = Math.random() * w;
                 p.y = Math.random() * h;
                 p.v = 0;
-                p.s = 2 + Math.random() * 5; // Star size
-                p.life = Math.random() * Math.PI; // Phase for twinkling
+                p.s = (2 + Math.random() * 5) * sizeMult;
+                p.life = Math.random() * Math.PI;
             }
             state.particles.push(p);
         }
     }
 
-    // Drawing & Update Loop
     ctx.fillStyle = pColor;
 
     for (let i = 0; i < state.particles.length; i++) {
@@ -534,62 +535,46 @@ function updateParticles(ctx, w, h, avgVol) {
 
         // Physics & Movement
         if (theme === 'standard') {
-            // Upward with audio boost
-            // Audio affects speed dynamically but we damp it so it's not jittery
             const audioForce = (avgVol / 255) * 5;
             p.y -= p.v + audioForce;
-            p.x += p.drift; // Mild horizontal sway
-
-            // Fade out near top
+            p.x += p.drift;
             const progress = p.y / h;
-            ctx.globalAlpha = Math.min(1, Math.max(0.2, progress)); // Fade at very top
+            ctx.globalAlpha = Math.min(1, Math.max(0.2, progress));
 
         } else if (theme === 'fire') {
-            // Fire physics: Up fast, shrink, drift
             p.y -= p.v + ((avgVol / 255) * 4);
-            p.x += Math.sin(p.y * 0.01 + p.life) * 2; // Wavy smoke look
-            p.s *= 0.96; // Shrink fast
-            p.life -= 0.02; // Fade life
-
+            p.x += Math.sin(p.y * 0.01 + p.life) * 2;
+            p.s *= 0.96;
+            p.life -= 0.02;
             ctx.globalAlpha = Math.max(0, p.life);
-
-            // Kill if too small or invisible
             if (p.s < 0.5 || p.life <= 0) {
                 state.particles.splice(i, 1); i--; continue;
             }
 
         } else if (theme === 'snow') {
-            // Falling down
             p.y += p.v;
-            p.x += Math.sin(p.y * 0.01) * 1; // Gentle sway
+            p.x += Math.sin(p.y * 0.01) * 1;
             ctx.globalAlpha = 0.8;
 
         } else if (theme === 'stars') {
-            // Stationary but twinkle
-            p.life += 0.05 + ((avgVol / 255) * 0.2); // Twinkle faster with music
+            p.life += 0.05 + ((avgVol / 255) * 0.2);
             const opacity = 0.3 + (Math.abs(Math.sin(p.life)) * 0.7);
             ctx.globalAlpha = opacity;
-
-            // Parallax drift with mouse/time would be cool but keep simple for now
-            // Maybe slight drift?
             p.y += 0.2;
         }
 
-        // Draw
-        if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8); // Cap max opacity often better
+        if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8);
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
         ctx.fill();
 
-        // Reset / Bounds Check
         if ((theme !== 'fire' && theme !== 'snow') && p.y < -50) {
-            // Standard particles reset to bottom
             state.particles.splice(i, 1); i--;
         } else if (theme === 'snow' && p.y > h + 50) {
             state.particles.splice(i, 1); i--;
         } else if (theme === 'stars' && p.y > h + 10) {
-            p.y = -10; p.x = Math.random() * w; // Wrap stars
+            p.y = -10; p.x = Math.random() * w;
         }
     }
     ctx.globalAlpha = 1;
@@ -662,10 +647,9 @@ function drawLyricsBlock(ctx, w, h, time) {
     let alpha = 1, yAnim = 0, scale = 1;
     const animDur = 0.5;
 
-    // TYPEWRITER LOGIC
     let charLimit = 9999;
     if (cfg.animation === 'typewriter') {
-        const typeSpeed = 0.05; // sec per char
+        const typeSpeed = 0.05;
         charLimit = Math.floor(duration / typeSpeed);
     } else if (duration < animDur) {
         const p = duration / animDur;
@@ -681,7 +665,6 @@ function drawLyricsBlock(ctx, w, h, time) {
     ctx.globalAlpha = alpha;
     ctx.textAlign = 'center';
 
-    // Main Text Drawing
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
     if (cfg.style === 'neon') { ctx.shadowColor = cfg.shadow; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color; }
     else if (cfg.style === 'bold') { ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.fillStyle = cfg.color; }
@@ -700,7 +683,6 @@ function drawLyricsBlock(ctx, w, h, time) {
         ctx.fillText(textToDraw, 0, i * lineHeightMain);
     });
 
-    // Translation Text
     if (transLines.length > 0) {
         const transStartY = (mainLines.length * lineHeightMain) + gap;
         ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
@@ -708,9 +690,6 @@ function drawLyricsBlock(ctx, w, h, time) {
         ctx.shadowBlur = 0;
 
         transLines.forEach((t, i) => {
-            // Typewriter also applies to translation? Let's say yes but delayed? Or always full? 
-            // Let's keep translation fade in for simplicity or sync with main. 
-            // Currently: Full text always for trans.
             const ly = transStartY + (i * lineHeightTrans);
             ctx.fillText(t, 0, ly);
         });
@@ -758,7 +737,7 @@ function drawGrain(ctx, w, h) {
 
 function exportVideo() {
     if (!state.audio.src) return alert("Nada que exportar");
-    initAudioContext(); // Ensure nodes
+    initAudioContext();
 
     dom['status-msg'].textContent = "Iniciando grabación... NO CAMBIES DE PESTAÑA";
     state.audio.pause();
@@ -767,10 +746,7 @@ function exportVideo() {
 
     const stream = state.canvas.captureStream(30);
     const dest = state.audioContext.createMediaStreamDestination();
-    state.sourceNode.connect(dest); // Connect source to recorder dest
-    // Also connect to speakers if you want to hear it while recording, but usually better not to if double audio issues.
-    // Default flow was source -> analyser -> speakers.
-    // We add source -> mediaStreamDest.
+    state.sourceNode.connect(dest);
 
     stream.addTrack(dest.stream.getAudioTracks()[0]);
     const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
@@ -785,8 +761,6 @@ function exportVideo() {
         a.download = `${title}.webm`;
         a.click();
         dom['status-msg'].textContent = "¡Video Exportado!";
-
-        // Cleanup weird hookups? Nah, context is persistent.
     };
 
     mediaRecorder.start();
