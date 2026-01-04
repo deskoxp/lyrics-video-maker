@@ -446,7 +446,7 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
 
     ctx.save();
     let shakeX = 0, shakeY = 0;
-    if (lineObj.effect === 'pulse') scale += (avgVol / 255) * 0.5;
+    if (lineObj.effect === 'pulse') scale += (avgVol / 255) * 0.25;
     else if (lineObj.effect === 'glitch') { shakeX = (Math.random() - 0.5) * 20; shakeY = (Math.random() - 0.5) * 5; if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion'; }
     else if (lineObj.effect === 'flash' && Math.floor(Date.now() / 50) % 2 === 0) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 100; ctx.shadowColor = '#fff'; }
 
@@ -590,3 +590,4 @@ function exportVideo() {
 }
 
 init();
+
