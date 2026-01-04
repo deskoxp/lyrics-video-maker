@@ -415,6 +415,7 @@ function renderTimelineEditor() {
     });
 }
 
+// Loop
 function loop() {
     requestAnimationFrame(loop);
     let avgVol = 0;
@@ -430,6 +431,7 @@ function loop() {
     render(now, avgVol);
 }
 
+// Render
 function render(time, avgVol) {
     const w = state.canvas.width;
     const h = state.canvas.height;
@@ -471,12 +473,213 @@ function render(time, avgVol) {
     // 4. Particles
     if (cfg.fx.particles) updateParticles(ctx, w, h, avgVol);
 
-    // 5. Lyrics
-    drawLyricsBlock(ctx, w, h, time);
+    // 5. Lyrics (passed avgVol for reactive text effects)
+    drawLyricsBlock(ctx, w, h, time, avgVol);
 
     // 6. Meta
     drawMetadata(ctx, w, h);
     if (state.watermarkImage) drawWatermark(ctx, w, h);
+}
+
+// ... helper functions remain ...
+
+// Parse Lyrics with Effect Markers
+function parseAllLyrics() {
+    const rawLines = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
+    state.translation = dom['lyrics-translation'].value.split('\n').filter(l => l.trim() !== '');
+
+    const cleanLyrics = [];
+    const parsedTimes = [];
+    const parsedEffects = [];
+
+    const timeRegex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
+
+    rawLines.forEach(line => {
+        let text = line.trim();
+        let time = null;
+
+        const match = text.match(timeRegex);
+        if (match) {
+            const mins = parseFloat(match[1]);
+            const secs = parseFloat(match[2]);
+            text = match[3].trim();
+            time = mins * 60 + secs;
+        }
+
+        // Effect Detection
+        let effect = 'none';
+
+        // *** = Pulse (Bass)
+        if (text.startsWith('***') && text.endsWith('***')) {
+            effect = 'pulse';
+            text = text.slice(3, -3).trim();
+        }
+        // %%% = Glitch
+        else if (text.startsWith('%%%') && text.endsWith('%%%')) {
+            effect = 'glitch';
+            text = text.slice(3, -3).trim();
+        }
+        // ### = Flash
+        else if (text.startsWith('###') && text.endsWith('###')) {
+            effect = 'flash';
+            text = text.slice(3, -3).trim();
+        }
+
+        cleanLyrics.push(text);
+        parsedEffects.push(effect);
+        parsedTimes.push(time);
+    });
+
+    state.lyrics = cleanLyrics;
+    const count = state.lyrics.length;
+
+    const oldSync = state.syncedLyrics;
+    state.syncedLyrics = new Array(count).fill(0).map((_, i) => {
+        let time = -1;
+        if (parsedTimes[i] !== null) time = parsedTimes[i];
+        else if (oldSync[i] && oldSync[i].time !== -1) time = oldSync[i].time;
+
+        return {
+            text: state.lyrics[i],
+            trans: state.translation[i] || '',
+            time: time,
+            effect: parsedEffects[i] // Store effect
+        };
+    });
+
+    if (dom['timeline-editor'].classList.contains('active')) {
+        renderTimelineEditor();
+    }
+}
+
+function drawLyricsBlock(ctx, w, h, time, avgVol) {
+    const cfg = state.config.text;
+
+    let idx = -1;
+    for (let i = 0; i < state.syncedLyrics.length; i++) {
+        if (state.syncedLyrics[i].time <= time && state.syncedLyrics[i].time !== -1) idx = i;
+        else if (state.syncedLyrics[i].time > time) break;
+    }
+    if (idx === -1) return;
+
+    const lineObj = state.syncedLyrics[idx];
+    const duration = time - lineObj.time;
+
+    let fontName = 'Outfit';
+    if (cfg.style === 'serif') fontName = 'serif';
+    if (cfg.style === 'arcade') fontName = 'Courier New';
+
+    const fontSizeMain = cfg.size * 2;
+    const maxWidth = w * 0.85;
+
+    // Main Lines
+    ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
+    const mainLines = getLines(ctx, lineObj.text, maxWidth);
+    const lineHeightMain = fontSizeMain * 1.25;
+
+    let transLines = [];
+    let fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
+    if (lineObj.trans) {
+        ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
+        transLines = getLines(ctx, lineObj.trans, maxWidth);
+    }
+    const lineHeightTrans = fontSizeTrans * 1.4;
+    const gap = 40;
+    const realTotalHeight = (mainLines.length * lineHeightMain) +
+        (transLines.length > 0 ? gap + (transLines.length * lineHeightTrans) : 0);
+    let startY = (h / 2) - (realTotalHeight / 2) + (lineHeightMain * 0.7);
+
+    let alpha = 1, yAnim = 0, scale = 1;
+    const animDur = 0.5;
+
+    let charLimit = 9999;
+    if (cfg.animation === 'typewriter') {
+        const typeSpeed = 0.05;
+        charLimit = Math.floor(duration / typeSpeed);
+    } else if (duration < animDur) {
+        const p = duration / animDur;
+        const ease = p * (2 - p);
+        if (cfg.animation === 'fade') alpha = ease;
+        if (cfg.animation === 'slide-up') { alpha = ease; yAnim = 80 * (1 - ease); }
+        if (cfg.animation === 'zoom-in') { scale = 0.8 + (0.2 * ease); alpha = ease; }
+    }
+
+    ctx.save();
+
+    // --- TEXT EFFECTS START ---
+    let shakeX = 0, shakeY = 0;
+
+    if (lineObj.effect === 'pulse') {
+        // Pulse with bass
+        const pulse = (avgVol / 255) * 0.5; // Up to 50% larger
+        scale += pulse;
+    } else if (lineObj.effect === 'glitch') {
+        // Random shake
+        shakeX = (Math.random() - 0.5) * 20;
+        shakeY = (Math.random() - 0.5) * 5;
+        // RGB split manual implementation would be complex, simplfying to shake + color shift
+        if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion';
+    } else if (lineObj.effect === 'flash') {
+        // Strobe alpha
+        if (Math.floor(Date.now() / 50) % 2 === 0) {
+            ctx.fillStyle = '#ffffff'; // Force white flash
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 100;
+        }
+    }
+    // --- TEXT EFFECTS END ---
+
+    ctx.translate(w / 2 + shakeX, startY + yAnim + shakeY);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+
+    ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
+
+    // Apply default styles unless overridden by flash
+    if (lineObj.effect !== 'flash') {
+        if (cfg.style === 'neon') { ctx.shadowColor = cfg.shadow; ctx.shadowBlur = 40; ctx.fillStyle = cfg.color; }
+        else if (cfg.style === 'bold') { ctx.shadowBlur = 0; ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.fillStyle = cfg.color; }
+        else { ctx.fillStyle = cfg.color; ctx.shadowBlur = 0; }
+    }
+
+    let charsDrawn = 0;
+    mainLines.forEach((t, i) => {
+        let textToDraw = t;
+        if (cfg.animation === 'typewriter') {
+            if (charsDrawn >= charLimit) textToDraw = "";
+            else if (charsDrawn + t.length > charLimit) textToDraw = t.substring(0, charLimit - charsDrawn);
+            charsDrawn += t.length;
+        }
+
+        if (cfg.style === 'bold' && lineObj.effect !== 'flash') ctx.strokeText(textToDraw, 0, i * lineHeightMain);
+
+        // Glitch chromatic aberration (simple offset draw for RED)
+        if (lineObj.effect === 'glitch') {
+            ctx.fillStyle = 'red';
+            ctx.globalAlpha = 0.7;
+            ctx.fillText(textToDraw, 5, i * lineHeightMain);
+            ctx.fillStyle = 'blue';
+            ctx.fillText(textToDraw, -5, i * lineHeightMain);
+            ctx.fillStyle = cfg.color; // Reset
+            ctx.globalAlpha = alpha;
+        }
+
+        ctx.fillText(textToDraw, 0, i * lineHeightMain);
+    });
+
+    if (transLines.length > 0) {
+        const transStartY = (mainLines.length * lineHeightMain) + gap;
+        ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
+        ctx.fillStyle = cfg.accent;
+        ctx.shadowBlur = 0;
+
+        transLines.forEach((t, i) => {
+            const ly = transStartY + (i * lineHeightTrans);
+            ctx.fillText(t, 0, ly);
+        });
+    }
+    ctx.restore();
 }
 
 function drawVisualizer(ctx, w, h, avgVol) {
