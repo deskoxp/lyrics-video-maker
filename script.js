@@ -275,21 +275,59 @@ function setupEvents() {
 }
 
 function parseAllLyrics() {
-    state.lyrics = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
+    const rawLines = dom['lyrics-input'].value.split('\n').filter(l => l.trim() !== '');
     state.translation = dom['lyrics-translation'].value.split('\n').filter(l => l.trim() !== '');
+
+    // Arrays to hold parsed data
+    const cleanLyrics = [];
+    const parsedTimes = [];
+
+    // Regex for LRC format: [00:12.34]Text
+    const timeRegex = /^\[(\d{2}):(\d{2}(?:\.\d+)?)\](.*)/;
+
+    rawLines.forEach(line => {
+        const match = line.match(timeRegex);
+        if (match) {
+            const mins = parseFloat(match[1]);
+            const secs = parseFloat(match[2]);
+            const text = match[3].trim();
+            cleanLyrics.push(text);
+            parsedTimes.push(mins * 60 + secs);
+        } else {
+            cleanLyrics.push(line.trim());
+            parsedTimes.push(null);
+        }
+    });
+
+    state.lyrics = cleanLyrics;
     const count = state.lyrics.length;
-    if (state.syncedLyrics.length !== count) {
-        const oldSync = state.syncedLyrics;
-        state.syncedLyrics = new Array(count).fill(0).map((_, i) => ({
+
+    // Rebuild syncedLyrics preserving existing times if no LRC provided for that line
+    // If array lengths mismatches, we rebuild fully.
+
+    const oldSync = state.syncedLyrics;
+    state.syncedLyrics = new Array(count).fill(0).map((_, i) => {
+        let time = -1;
+
+        // Priority 1: LRC Timestamp from this paste
+        if (parsedTimes[i] !== null) {
+            time = parsedTimes[i];
+        }
+        // Priority 2: Existing sync time (if available and index matches)
+        else if (oldSync[i] && oldSync[i].time !== -1) {
+            time = oldSync[i].time;
+        }
+
+        return {
             text: state.lyrics[i],
             trans: state.translation[i] || '',
-            time: oldSync[i] ? oldSync[i].time : -1
-        }));
-    } else {
-        state.syncedLyrics.forEach((item, i) => {
-            item.text = state.lyrics[i];
-            item.trans = state.translation[i] || '';
-        });
+            time: time
+        };
+    });
+
+    // If we have parsed times, we should update the timeline editor if it's open
+    if (dom['timeline-editor'].classList.contains('active')) {
+        renderTimelineEditor();
     }
 }
 
