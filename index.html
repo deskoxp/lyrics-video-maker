@@ -216,6 +216,10 @@
                                 <label>Tamaño Partículas <span id="val-part-size">100%</span></label>
                                 <input type="range" id="particle-size" min="50" max="250" value="100">
                             </div>
+                            <div class="range-group" style="margin-top: 0.5rem">
+                                <label>Velocidad Partículas <span id="val-part-speed">100%</span></label>
+                                <input type="range" id="particle-speed" min="10" max="300" value="100">
+                            </div>
                         </div>
 
                         <div class="color-row">
@@ -297,6 +301,9 @@
                     <div class="export-actions">
                         <button id="preview-btn" class="btn secondary">
                             <i class="fa-solid fa-play"></i> Vista Previa
+                        </button>
+                        <button id="popup-btn" class="btn secondary">
+                            <i class="fa-solid fa-up-right-from-square"></i> Modo OBS (Popup)
                         </button>
                         <button id="export-btn" class="btn accent">
                             <i class="fa-solid fa-file-export"></i> Renderizar Video

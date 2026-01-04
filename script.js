@@ -39,7 +39,8 @@ const state = {
             shadow: '#bc13fe',
             size: 50,
             transFont: 'inherit',
-            transSizePct: 0.6
+            transSizePct: 0.6,
+            particleSpeed: 1.0
         },
         viz: { style: 'none', color: '#ffffff' },
         meta: { artist: '', song: '' },
@@ -51,7 +52,8 @@ const state = {
     ctx: null,
     particles: [],
 
-    recordedChunks: []
+    recordedChunks: [],
+    popup: { window: null, canvas: null, ctx: null }
 };
 
 const dom = {};
@@ -63,11 +65,11 @@ function init() {
         'bg-blur', 'bg-darken', 'bg-scale', 'audio-reactive-bg', 'beat-intensity',
         'val-blur', 'val-darken', 'val-scale',
         'fx-particles', 'fx-vignette', 'fx-grain',
-        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size', 'font-size',
-        'trans-font', 'trans-size', 'val-trans-size', 'val-part-size',
+        'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size', 'particle-speed', 'font-size',
+        'trans-font', 'trans-size', 'val-trans-size', 'val-part-size', 'val-part-speed',
         'viz-style', 'viz-color',
         'meta-artist', 'meta-song', 'watermark-upload', 'wm-file-name', 'wm-opacity',
-        'sync-mode-btn', 'preview-btn', 'export-btn', 'play-pause-btn', 'status-msg',
+        'sync-mode-btn', 'preview-btn', 'popup-btn', 'export-btn', 'play-pause-btn', 'status-msg',
         'video-canvas', 'sync-overlay', 'tap-btn', 'stop-sync-btn', 'timeline-editor',
         'sync-current-text', 'sync-next-text', 'progress-fill'
     ];
@@ -187,6 +189,9 @@ function setupEvents() {
         state.config.text.particleSize = parseInt(dom['particle-size'].value) / 100;
         dom['val-part-size'].innerText = dom['particle-size'].value + '%';
 
+        state.config.text.particleSpeed = parseInt(dom['particle-speed'].value) / 100;
+        dom['val-part-speed'].innerText = dom['particle-speed'].value + '%';
+
         state.config.text.size = parseInt(dom['font-size'].value);
         state.config.text.transFont = dom['trans-font'].value;
         state.config.text.transSizePct = parseInt(dom['trans-size'].value) / 100;
@@ -205,7 +210,7 @@ function setupEvents() {
     };
 
     const inputs = ['bg-blur', 'bg-darken', 'bg-scale', 'beat-intensity', 'text-animation',
-        'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size',
+        'text-color', 'accent-color', 'shadow-color', 'particle-color', 'particle-theme', 'particle-size', 'particle-speed',
         'font-size', 'meta-artist', 'meta-song', 'wm-opacity', 'trans-font',
         'trans-size', 'viz-style', 'viz-color'];
     inputs.forEach(id => { if (dom[id]) dom[id].addEventListener('input', updateConfig); });
@@ -248,7 +253,36 @@ function setupEvents() {
         state.isPlaying = true;
     });
 
+    dom['popup-btn']?.addEventListener('click', openOBSPopup);
+
     dom['export-btn'].addEventListener('click', exportVideo);
+}
+
+function openOBSPopup() {
+    const w = 1080;
+    const h = 1920;
+    const popup = window.open('', 'LyricFlowOBS', `width=${w / 2},height=${h / 2},menubar=no,toolbar=no,location=no,status=no`);
+
+    if (!popup) return alert("Por favor, permite las ventanas emergentes.");
+
+    popup.document.body.innerHTML = `
+        <style>
+            body { margin: 0; background: black; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+            canvas { max-width: 100%; max-height: 100%; object-fit: contain; background: #000; }
+        </style>
+        <canvas id="obs-canvas" width="${w}" height="${h}"></canvas>
+    `;
+    popup.document.title = "OBS Preview - LyricFlow Pro";
+
+    state.popup.window = popup;
+    state.popup.canvas = popup.document.getElementById('obs-canvas');
+    state.popup.ctx = state.popup.canvas.getContext('2d');
+
+    popup.onbeforeunload = () => {
+        state.popup.window = null;
+        state.popup.canvas = null;
+        state.popup.ctx = null;
+    };
 }
 
 function parseAllLyrics() {
@@ -404,6 +438,11 @@ function render(time, avgVol) {
     drawLyricsBlock(ctx, w, h, time, avgVol);
     drawMetadata(ctx, w, h);
     if (state.watermarkImage) drawWatermark(ctx, w, h);
+
+    // Copy to OBS Popup if open
+    if (state.popup.ctx) {
+        state.popup.ctx.drawImage(state.canvas, 0, 0);
+    }
 }
 
 function drawLyricsBlock(ctx, w, h, time, avgVol) {
@@ -446,7 +485,10 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
 
     ctx.save();
     let shakeX = 0, shakeY = 0;
-    if (lineObj.effect === 'pulse') scale += (avgVol / 255) * 0.25;
+    if (lineObj.effect === 'pulse') {
+        scale *= 0.5; // Achicar base al 50%
+        scale += (avgVol / 255) * 0.5; // Pulse de 50%
+    }
     else if (lineObj.effect === 'glitch') { shakeX = (Math.random() - 0.5) * 20; shakeY = (Math.random() - 0.5) * 5; if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion'; }
     else if (lineObj.effect === 'flash' && Math.floor(Date.now() / 50) % 2 === 0) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 100; ctx.shadowColor = '#fff'; }
 
@@ -497,13 +539,13 @@ function drawVisualizer(ctx, w, h, avgVol) {
 }
 
 function updateParticles(ctx, w, h, avgVol) {
-    const { particleTheme: theme, particleColor: pColor, particleSize: sizeMult } = state.config.text;
+    const { particleTheme: theme, particleColor: pColor, particleSize: sizeMult, particleSpeed: vMult } = state.config.text;
     const maxP = (theme === 'fire') ? 150 : (theme === 'stars' ? 80 : 60);
     if (state.particles.length < maxP) {
-        const p = { x: Math.random() * w, y: h + 50, v: 2 + Math.random() * 3, s: (4 + Math.random() * 8) * sizeMult, life: 1, drift: (Math.random() - 0.5) * 2 };
-        if (theme === 'fire') { p.x = (w / 2) + (Math.random() - 0.5) * w * 0.6; p.v = 4 + Math.random() * 5; p.s = (10 + Math.random() * 20) * sizeMult; }
-        else if (theme === 'snow') { p.y = -50; p.v = 1 + Math.random() * 2; p.s = (3 + Math.random() * 6) * sizeMult; }
-        else if (theme === 'stars') { p.x = Math.random() * w; p.y = Math.random() * h; p.v = 0; p.s = (2 + Math.random() * 5) * sizeMult; p.life = Math.random() * Math.PI; }
+        const p = { x: Math.random() * w, y: h + 50, v: (2 + Math.random() * 3) * vMult, s: (4 + Math.random() * 8) * sizeMult, life: 1, drift: (Math.random() - 0.5) * 2 };
+        if (theme === 'fire') { p.x = (w / 2) + (Math.random() - 0.5) * w * 0.6; p.v = (4 + Math.random() * 5) * vMult; p.s = (10 + Math.random() * 20) * sizeMult; }
+        else if (theme === 'snow') { p.y = -50; p.v = (1 + Math.random() * 2) * vMult; p.s = (3 + Math.random() * 6) * sizeMult; }
+        else if (theme === 'stars') { p.x = Math.random() * w; p.y = Math.random() * h; p.v = 0.2 * vMult; p.s = (2 + Math.random() * 5) * sizeMult; p.life = Math.random() * Math.PI; }
         state.particles.push(p);
     }
     ctx.fillStyle = pColor;
@@ -512,7 +554,7 @@ function updateParticles(ctx, w, h, avgVol) {
         if (theme === 'standard') { p.y -= p.v + (avgVol / 255 * 5); p.x += p.drift; ctx.globalAlpha = Math.min(1, Math.max(0.2, p.y / h)); }
         else if (theme === 'fire') { p.y -= p.v + (avgVol / 255 * 4); p.x += Math.sin(p.y * 0.01 + p.life) * 2; p.s *= 0.96; p.life -= 0.02; ctx.globalAlpha = Math.max(0, p.life); if (p.s < 0.5 || p.life <= 0) { state.particles.splice(i, 1); i--; continue; } }
         else if (theme === 'snow') { p.y += p.v; p.x += Math.sin(p.y * 0.01); ctx.globalAlpha = 0.8; }
-        else if (theme === 'stars') { p.life += 0.05 + (avgVol / 255 * 0.2); ctx.globalAlpha = 0.3 + Math.abs(Math.sin(p.life)) * 0.7; p.y += 0.2; }
+        else if (theme === 'stars') { p.life += (0.05 + (avgVol / 255 * 0.2)) * vMult; ctx.globalAlpha = 0.3 + Math.abs(Math.sin(p.life)) * 0.7; p.y += p.v; }
         if (theme !== 'fire') ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.8);
         ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
         if (((theme !== 'fire' && theme !== 'snow') && p.y < -50) || (theme === 'snow' && p.y > h + 50)) { state.particles.splice(i, 1); i--; }
@@ -590,4 +632,3 @@ function exportVideo() {
 }
 
 init();
-
