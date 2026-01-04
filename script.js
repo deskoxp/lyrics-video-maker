@@ -1,7 +1,9 @@
 /**
- * LyricFlow PRO - Video Engine v2.6
- * - Custom Translation Font & Size
- * - Bottom Watermark
+ * LyricFlow PRO - Video Engine v2.7
+ * - Auto Text Wrapping
+ * - Dual Language
+ * - Watermark & Metadata
+ * - Timeline Editor & Stop Sync
  */
 
 const state = {
@@ -29,11 +31,10 @@ const state = {
             animation: 'slide-up',
             color: '#ffffff',
             accent: '#00f3ff',
+            particleColor: '#ffe400',
             width: 85,
             shadow: '#bc13fe',
-            particleColor: '#ffe400',
             size: 50,
-            // New Translation Props
             transFont: 'inherit',
             transSizePct: 0.6
         },
@@ -62,10 +63,10 @@ function init() {
         'val-blur', 'val-darken', 'val-scale',
         'fx-particles', 'fx-vignette', 'fx-grain',
         'text-animation', 'text-color', 'accent-color', 'shadow-color', 'particle-color', 'font-size',
-        'trans-font', 'trans-size', 'val-trans-size', // New IDs
+        'trans-font', 'trans-size', 'val-trans-size',
         'meta-artist', 'meta-song', 'watermark-upload', 'wm-file-name', 'wm-opacity',
         'sync-mode-btn', 'preview-btn', 'export-btn', 'play-pause-btn', 'status-msg',
-        'video-canvas', 'sync-overlay', 'tap-btn',
+        'video-canvas', 'sync-overlay', 'tap-btn', 'stop-sync-btn', 'timeline-editor', // New
         'sync-current-text', 'sync-next-text', 'progress-fill'
     ];
     ids.forEach(id => dom[id] = document.getElementById(id));
@@ -160,7 +161,6 @@ function setupEvents() {
         state.config.text.particleColor = dom['particle-color'].value;
         state.config.text.size = parseInt(dom['font-size'].value);
 
-        // Setup Trans Props
         state.config.text.transFont = dom['trans-font'].value;
         state.config.text.transSizePct = parseInt(dom['trans-size'].value) / 100;
         dom['val-trans-size'].innerText = dom['trans-size'].value + '%';
@@ -212,6 +212,7 @@ function setupEvents() {
 
     dom['play-pause-btn'].addEventListener('click', togglePlay);
     dom['sync-mode-btn'].addEventListener('click', startSync);
+    dom['stop-sync-btn'].addEventListener('click', endSync); // Bind Stop Button
     dom['tap-btn'].addEventListener('click', handleTap);
     document.addEventListener('keydown', e => { if (state.isSyncing && e.code === 'Space') handleTap(); });
 
@@ -268,6 +269,8 @@ function startSync() {
     syncIndex = 0;
     state.syncedLyrics.forEach(l => l.time = -1);
     dom['sync-overlay'].classList.remove('hidden');
+    dom['timeline-editor'].classList.remove('active'); // Hide editor while syncing
+
     state.audio.currentTime = 0;
     state.audio.play();
     state.isPlaying = true;
@@ -298,7 +301,41 @@ function endSync() {
     dom['sync-overlay'].classList.add('hidden');
     state.audio.pause();
     state.isPlaying = false;
+    dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-play"></i>';
     dom['status-msg'].textContent = "Sincronización guardada.";
+    renderTimelineEditor(); // Show Editor
+}
+
+function renderTimelineEditor() {
+    const container = dom['timeline-editor'];
+    container.innerHTML = '';
+    container.classList.add('active');
+
+    state.syncedLyrics.forEach((line, index) => {
+        if (line.time === -1 && index >= syncIndex) return; // Skip unsynced lines usually, or show all? Show all.
+
+        const row = document.createElement('div');
+        row.className = 'timeline-row';
+
+        const timeInput = document.createElement('input');
+        timeInput.type = 'number';
+        timeInput.step = '0.1';
+        timeInput.className = 'time-input';
+        timeInput.value = line.time === -1 ? 0 : line.time.toFixed(2);
+
+        timeInput.addEventListener('change', (e) => {
+            const val = parseFloat(e.target.value);
+            state.syncedLyrics[index].time = val;
+        });
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'lyric-preview';
+        textSpan.textContent = line.text;
+
+        row.appendChild(timeInput);
+        row.appendChild(textSpan);
+        container.appendChild(row);
+    });
 }
 
 function loop() {
@@ -396,8 +433,8 @@ function drawLyricsBlock(ctx, w, h, time) {
 
     // Translation Setup
     let transLines = [];
-    let fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6); // Custom Size
-    let transFont = cfg.transFont === 'inherit' ? fontName : cfg.transFont; // Custom Font
+    let fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
+    let transFont = cfg.transFont === 'inherit' ? fontName : cfg.transFont;
 
     if (lineObj.trans) {
         ctx.font = `italic 500 ${fontSizeTrans}px "${transFont}"`;
