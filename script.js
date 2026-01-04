@@ -459,7 +459,13 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
 
     const fontName = cfg.style === 'serif' ? 'serif' : (cfg.style === 'arcade' ? 'Courier New' : 'Outfit');
     const fontSizeMain = cfg.size * 2;
-    const maxWidth = w * 0.85;
+
+    // --- TIKTOK SAFE ZONE (SIMÉTRICA) ---
+    // Usamos un ancho máximo del 70% (maxWidth = w * 0.7).
+    // Esto deja un margen del 15% (162px) a CADA lado.
+    // Mantiene el centrado perfecto y evita los botones de TikTok.
+    const maxWidth = w * 0.7;
+    const centerX = w / 2;
 
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
     const mainLines = getLines(ctx, lineObj.text, maxWidth);
@@ -492,7 +498,7 @@ function drawLyricsBlock(ctx, w, h, time, avgVol) {
     else if (lineObj.effect === 'glitch') { shakeX = (Math.random() - 0.5) * 20; shakeY = (Math.random() - 0.5) * 5; if (Math.random() > 0.8) ctx.globalCompositeOperation = 'exclusion'; }
     else if (lineObj.effect === 'flash' && Math.floor(Date.now() / 50) % 2 === 0) { ctx.fillStyle = '#fff'; ctx.shadowBlur = 100; ctx.shadowColor = '#fff'; }
 
-    ctx.translate(w / 2 + shakeX, startY + yAnim + shakeY); ctx.scale(scale, scale); ctx.globalAlpha = alpha; ctx.textAlign = 'center';
+    ctx.translate(centerX + shakeX, startY + yAnim + shakeY); ctx.scale(scale, scale); ctx.globalAlpha = alpha; ctx.textAlign = 'center';
     ctx.font = `800 ${fontSizeMain}px "${fontName}"`;
 
     if (lineObj.effect !== 'flash') {
