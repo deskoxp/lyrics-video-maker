@@ -298,6 +298,29 @@
                         <!-- JS injected rows -->
                     </div>
 
+                    <div class="control-group">
+                        <h3>Rango de Grabación</h3>
+                        <div class="range-inputs">
+                            <div class="input-field">
+                                <label>Inicio (seg)</label>
+                                <div class="input-with-btn">
+                                    <input type="number" id="export-start" value="0" step="0.1" min="0">
+                                    <button class="small-btn" id="set-start-btn" title="Usar tiempo actual"><i
+                                            class="fa-solid fa-clock"></i></button>
+                                </div>
+                            </div>
+                            <div class="input-field">
+                                <label>Fin (seg)</label>
+                                <div class="input-with-btn">
+                                    <input type="number" id="export-end" value="0" step="0.1" min="0">
+                                    <button class="small-btn" id="set-end-btn" title="Usar tiempo actual"><i
+                                            class="fa-solid fa-clock"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="small-info">Deja en 0 para grabar desde el inicio hasta el final.</p>
+                    </div>
+
                     <div class="export-actions">
                         <button id="preview-btn" class="btn secondary">
                             <i class="fa-solid fa-play"></i> Vista Previa
@@ -327,6 +350,10 @@
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
                     <span class="time-code">00:00</span>
+                    <div class="volume-control">
+                        <i class="fa-solid fa-volume-high"></i>
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+                    </div>
                 </div>
 
                 <!-- Sync Overlay -->

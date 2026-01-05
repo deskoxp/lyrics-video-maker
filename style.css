@@ -472,7 +472,7 @@ canvas {
 
 .playback-bar {
     position: absolute;
-    bottom: 20px;
+    bottom: 0.5rem;
     left: 20px;
     right: 20px;
     background: rgba(0, 0, 0, 0.8);
@@ -608,4 +608,86 @@ canvas {
     body {
         overflow: auto;
     }
+}
+
+/* --- NEW CONTROLS --- */
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.volume-control i {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.volume-control input[type="range"] {
+    width: 70px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    -webkit-appearance: none;
+    outline: none;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.range-inputs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.range-inputs .input-field {
+    flex: 1;
+}
+
+.range-inputs label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.range-inputs input {
+    width: 100%;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.small-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.small-btn:hover {
+    color: white;
+    background: var(--primary);
+}
+
+.small-info {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-style: italic;
 }

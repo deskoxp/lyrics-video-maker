@@ -71,7 +71,8 @@ function init() {
         'meta-artist', 'meta-song', 'watermark-upload', 'wm-file-name', 'wm-opacity',
         'sync-mode-btn', 'preview-btn', 'popup-btn', 'export-btn', 'play-pause-btn', 'status-msg',
         'video-canvas', 'sync-overlay', 'tap-btn', 'stop-sync-btn', 'timeline-editor',
-        'sync-current-text', 'sync-next-text', 'progress-fill'
+        'sync-current-text', 'sync-next-text', 'progress-fill', 'volume-slider',
+        'export-start', 'export-end', 'set-start-btn', 'set-end-btn'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -256,6 +257,18 @@ function setupEvents() {
     dom['popup-btn']?.addEventListener('click', openOBSPopup);
 
     dom['export-btn'].addEventListener('click', exportVideo);
+
+    dom['volume-slider'].addEventListener('input', (e) => {
+        state.audio.volume = parseFloat(e.target.value);
+    });
+
+    dom['set-start-btn'].addEventListener('click', () => {
+        dom['export-start'].value = state.audio.currentTime.toFixed(1);
+    });
+
+    dom['set-end-btn'].addEventListener('click', () => {
+        dom['export-end'].value = state.audio.currentTime.toFixed(1);
+    });
 }
 
 function openOBSPopup() {
@@ -409,7 +422,12 @@ function loop() {
         avgVol = sum / 20;
     }
     const now = state.audio.currentTime;
-    if (state.audio.duration) dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
+    if (state.audio.duration) {
+        dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
+        const mins = Math.floor(now / 60);
+        const secs = Math.floor(now % 60);
+        document.querySelector('.time-code').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     render(now, avgVol);
 }
 
@@ -671,28 +689,58 @@ function drawGrain(ctx, w, h) {
 function exportVideo() {
     if (!state.audio.src) return alert("Sube audio primero");
     initAudioContext();
+
+    const startTime = parseFloat(dom['export-start'].value) || 0;
+    const endTime = parseFloat(dom['export-end'].value) || state.audio.duration;
+
+    if (endTime <= startTime) return alert("El tiempo final debe ser mayor al inicial.");
+
     dom['status-msg'].textContent = "Exportando... NO CAMBIES DE PESTAÑA";
-    state.audio.pause(); state.audio.currentTime = 0;
-    if (state.bgType === 'video') state.backgroundVideo.currentTime = 0;
-    const stream = state.canvas.captureStream(30), dest = state.audioContext.createMediaStreamDestination();
-    state.sourceNode.connect(dest); stream.addTrack(dest.stream.getAudioTracks()[0]);
+    state.audio.pause();
+    state.audio.currentTime = startTime;
+    if (state.bgType === 'video') state.backgroundVideo.currentTime = startTime % state.backgroundVideo.duration;
+
+    const stream = state.canvas.captureStream(30);
+    const dest = state.audioContext.createMediaStreamDestination();
+    state.sourceNode.connect(dest);
+    stream.addTrack(dest.stream.getAudioTracks()[0]);
+
     let mime = 'video/webm;codecs=vp9', ext = 'webm';
     if (!MediaRecorder.isTypeSupported(mime)) { mime = 'video/webm'; }
+
     const mr = new MediaRecorder(stream, {
         mimeType: mime,
         videoBitsPerSecond: 12000000,
         audioBitsPerSecond: 256000
     }), chunks = [];
+
     mr.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
+
     mr.onstop = () => {
         const url = URL.createObjectURL(new Blob(chunks, { type: mime }));
-        const a = document.createElement('a'); a.href = url;
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${(state.config.meta.song || 'video').replace(/\s+/g, '-')}.${ext}`;
-        a.click(); dom['status-msg'].textContent = "¡Exportado!";
+        a.click();
+        dom['status-msg'].textContent = "¡Exportado!";
+        state.audio.ontimeupdate = null; // Clean up
     };
-    mr.start(); state.audio.play();
+
+    mr.start();
+    state.audio.play();
     if (state.bgType === 'video') state.backgroundVideo.play();
-    state.audio.onended = () => mr.stop();
+
+    // Check for end time
+    state.audio.ontimeupdate = () => {
+        if (state.audio.currentTime >= endTime) {
+            state.audio.pause();
+            mr.stop();
+        }
+    };
+
+    state.audio.onended = () => {
+        if (mr.state === 'recording') mr.stop();
+    };
 }
 
 init();
