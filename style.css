@@ -53,6 +53,7 @@ body {
 .logo-icon {
     font-size: 1.2rem;
     background: linear-gradient(45deg, var(--primary), var(--accent));
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -155,7 +156,7 @@ body {
 /* UI Elements */
 .file-card {
     background: var(--bg-card);
-    border: 1px border var(--border);
+    border: 1px solid var(--border);
     padding: 0.75rem;
     border-radius: var(--radius);
     display: flex;
@@ -274,11 +275,13 @@ input[type="range"] {
     height: 4px;
     background: var(--bg-card);
     border-radius: 2px;
+    appearance: none;
     -webkit-appearance: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 16px;
     height: 16px;
     background: var(--primary);
@@ -472,17 +475,18 @@ canvas {
 
 .playback-bar {
     position: absolute;
-    bottom: 0.5rem;
+    bottom: 2rem;
     left: 20px;
     right: 20px;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
     border-radius: 50px;
-    padding: 8px 16px;
+    padding: 12px 20px;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 100;
 }
 
 .playback-bar button {
@@ -490,150 +494,79 @@ canvas {
     border: none;
     color: white;
     cursor: pointer;
-    width: 24px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+/* Interactive Progress Bar */
 .progress-track {
     flex: 1;
-    height: 4px;
+    height: 6px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: height 0.2s;
+}
+
+.progress-track:hover {
+    height: 8px;
+}
+
+/* Aumentar área de clic sin cambiar el visual */
+.progress-track::after {
+    content: "";
+    position: absolute;
+    top: -10px;
+    bottom: -10px;
+    left: 0;
+    right: 0;
 }
 
 .progress-fill {
     width: 0%;
     height: 100%;
     background: var(--primary);
-    border-radius: 2px;
+    border-radius: 10px;
+    position: relative;
 }
 
 .time-code {
-    font-family: monospace;
-    font-size: 0.8rem;
-}
-
-/* Sync Overlay */
-.sync-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4rem 2rem;
-    z-index: 50;
-    transition: opacity 0.3s;
-}
-
-.sync-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-
-.sync-header {
-    color: var(--accent);
-    font-weight: 700;
-    letter-spacing: 2px;
-}
-
-.sync-target-box {
-    text-align: center;
-}
-
-.sync-prev {
-    opacity: 0.3;
-    margin-bottom: 2rem;
-}
-
-.sync-current {
-    font-size: 2rem;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 2rem;
-    line-height: 1.2;
-    text-shadow: 0 0 30px var(--primary);
-}
-
-.sync-next {
-    color: var(--text-muted);
-    font-size: 1.2rem;
-}
-
-.tap-huge-btn {
-    width: 100%;
-    padding: 2rem;
-    background: var(--bg-card);
-    border: 2px solid var(--primary);
-    border-radius: 20px;
-    color: white;
-    font-size: 2rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 4px;
-    cursor: pointer;
-    box-shadow: 0 0 50px rgba(99, 102, 241, 0.2);
-}
-
-.tap-huge-btn:active {
-    background: var(--primary);
-    transform: scale(0.98);
-}
-
-@media (max-width: 1000px) {
-    .app-container {
-        flex-direction: column;
-        overflow-y: auto;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: auto;
-    }
-
-    .workspace {
-        height: 100vh;
-        padding: 1rem;
-    }
-
-    .canvas-container {
-        height: auto;
-        width: 100%;
-        max-width: 400px;
-    }
-
-    body {
-        overflow: auto;
-    }
+    font-family: 'Space Grotesk', monospace;
+    font-size: 0.85rem;
+    min-width: 45px;
+    text-align: right;
 }
 
 /* --- NEW CONTROLS --- */
 .volume-control {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-left: auto;
+    gap: 0.75rem;
+    margin-left: 0.5rem;
 }
 
 .volume-control i {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
+    width: 16px;
 }
 
 .volume-control input[type="range"] {
-    width: 70px;
+    width: 80px;
     height: 4px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 2px;
+    appearance: none;
     -webkit-appearance: none;
     outline: none;
 }
 
 .volume-control input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 12px;
     height: 12px;
     background: var(--primary);
@@ -663,17 +596,17 @@ canvas {
     background: var(--bg-main);
     border: 1px solid var(--border);
     color: white;
-    padding: 0.5rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
+    padding: 0.6rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
 }
 
 .small-btn {
     background: var(--bg-card);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    padding: 0.5rem;
-    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
     cursor: pointer;
     transition: 0.2s;
     display: flex;
@@ -684,10 +617,55 @@ canvas {
 .small-btn:hover {
     color: white;
     background: var(--primary);
+    border-color: var(--primary);
 }
 
 .small-info {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-style: italic;
+    margin-top: 0.25rem;
+}
+
+/* Sync Overlay Adjustment */
+.sync-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4rem 2rem;
+    z-index: 1000;
+}
+
+@media (max-width: 1000px) {
+    .app-container {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+    }
+
+    .workspace {
+        height: 100vh;
+        padding: 1rem;
+    }
+
+    .canvas-container {
+        height: auto;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    body {
+        overflow: auto;
+    }
 }

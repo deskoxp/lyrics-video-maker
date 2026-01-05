@@ -72,7 +72,7 @@ function init() {
         'sync-mode-btn', 'preview-btn', 'popup-btn', 'export-btn', 'play-pause-btn', 'status-msg',
         'video-canvas', 'sync-overlay', 'tap-btn', 'stop-sync-btn', 'timeline-editor',
         'sync-current-text', 'sync-next-text', 'progress-fill', 'volume-slider',
-        'export-start', 'export-end', 'set-start-btn', 'set-end-btn', 'progress-track'
+        'export-start', 'export-end', 'set-start-btn', 'set-end-btn', 'progress-track', 'time-code'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -436,7 +436,7 @@ function loop() {
         dom['progress-fill'].style.width = (now / state.audio.duration * 100) + '%';
         const mins = Math.floor(now / 60);
         const secs = Math.floor(now % 60);
-        document.querySelector('.time-code').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        if (dom['time-code']) dom['time-code'].textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     render(now, avgVol);
 }
