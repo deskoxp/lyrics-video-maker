@@ -72,7 +72,7 @@ function init() {
         'sync-mode-btn', 'preview-btn', 'popup-btn', 'export-btn', 'play-pause-btn', 'status-msg',
         'video-canvas', 'sync-overlay', 'tap-btn', 'stop-sync-btn', 'timeline-editor',
         'sync-current-text', 'sync-next-text', 'progress-fill', 'volume-slider',
-        'export-start', 'export-end', 'set-start-btn', 'set-end-btn'
+        'export-start', 'export-end', 'set-start-btn', 'set-end-btn', 'progress-track'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -268,6 +268,16 @@ function setupEvents() {
 
     dom['set-end-btn'].addEventListener('click', () => {
         dom['export-end'].value = state.audio.currentTime.toFixed(1);
+    });
+
+    dom['progress-track'].addEventListener('click', (e) => {
+        if (!state.audio.duration) return;
+        const rect = dom['progress-track'].getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        state.audio.currentTime = pos * state.audio.duration;
+        if (state.bgType === 'video') {
+            state.backgroundVideo.currentTime = state.audio.currentTime % state.backgroundVideo.duration;
+        }
     });
 }
 
