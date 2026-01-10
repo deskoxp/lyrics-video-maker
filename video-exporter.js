@@ -1,7 +1,9 @@
 /**
- * DESKOEDITOR V1 - Video Exporter
- * Gestiona el MediaRecorder y la generación del archivo final.
+ * DESKOEDITOR V1 - Professional MP4 Exporter
+ * Utiliza WebCodecs API + mp4-muxer para renderizado MP4 de alta fidelidad.
  */
+
+/* global Mp4Muxer */
 
 export const VideoExporter = {
     async export(canvas, audio, state, dom, callbacks) {
@@ -9,76 +11,131 @@ export const VideoExporter = {
 
         const startTime = parseFloat(dom['export-start'].value) || 0;
         let endTime = parseFloat(dom['export-end'].value) || audio.duration;
+        const fps = state.config.export.fps || 30;
 
         if (endTime <= startTime) return showError("El tiempo de fin debe ser mayor al de inicio.");
 
         initAudioContext();
-        const exportStartRealTime = Date.now();
+        showStatus("Preparando codificadores...");
 
+        // 1. Setup Muxer
+        const muxer = new Mp4Muxer.Muxer({
+            target: new Mp4Muxer.ArrayBufferTarget(),
+            video: {
+                codec: 'avc1.42E01E', // Baseline profile for maximum compatibility
+                width: canvas.width,
+                height: canvas.height
+            },
+            audio: {
+                codec: 'mp4a.40.2', // AAC
+                numberOfChannels: 2,
+                sampleRate: state.audioContext.sampleRate
+            },
+            fastStart: 'fragmented'
+        });
+
+        // 2. Setup Video Encoder
+        const videoEncoder = new VideoEncoder({
+            output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+            error: (e) => showError("Error Video: " + e.message)
+        });
+
+        videoEncoder.configure({
+            codec: 'avc1.42E01E',
+            width: canvas.width,
+            height: canvas.height,
+            bitrate: 8_000_000,
+            framerate: fps
+        });
+
+        // 3. Setup Audio Encoder
+        const audioEncoder = new AudioEncoder({
+            output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+            error: (e) => showError("Error Audio: " + e.message)
+        });
+
+        audioEncoder.configure({
+            codec: 'mp4a.40.2',
+            numberOfChannels: 2,
+            sampleRate: state.audioContext.sampleRate,
+            bitrate: 128_000
+        });
+
+        // 4. Capture Streams
+        const audioStreamDestination = state.audioContext.createMediaStreamDestination();
+        state.sourceNode.connect(audioStreamDestination);
+
+        const audioTrack = audioStreamDestination.stream.getAudioTracks()[0];
+        const audioProcessor = new MediaStreamTrackProcessor({ track: audioTrack });
+        const audioReader = audioProcessor.readable.getReader();
+
+        // 5. Recording State
         audio.currentTime = startTime;
         if (state.bgType === 'video' && state.backgroundVideo.duration) {
             state.backgroundVideo.currentTime = (startTime + state.config.bg.delay) % state.backgroundVideo.duration;
         }
 
-        const stream = canvas.captureStream(state.config.export.fps || 30);
-        const dest = state.audioContext.createMediaStreamDestination();
-        state.sourceNode.connect(dest);
-        state.sourceNode.disconnect(state.analyser);
-        state.sourceNode.connect(state.analyser);
-        stream.addTrack(dest.stream.getAudioTracks()[0]);
+        let isRecording = true;
+        let frameCount = 0;
+        const exportStartRealTime = Date.now();
 
-        let mime = 'video/webm;codecs=vp9';
-        if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
-        if (!MediaRecorder.isTypeSupported(mime)) return showError("Tu navegador no soporta grabación de video.");
+        // Audio Processing loop
+        const processAudio = async () => {
+            while (isRecording) {
+                const { done, value } = await audioReader.read();
+                if (done) break;
+                if (isRecording) {
+                    audioEncoder.encode(value);
+                }
+                value.close();
+            }
+        };
+        processAudio();
 
-        try {
-            const mr = new MediaRecorder(stream, {
-                mimeType: mime,
-                videoBitsPerSecond: 12000000,
-                audioBitsPerSecond: 256000
-            });
-            const chunks = [];
+        // Video Encoding loop
+        const encodeFrame = async () => {
+            if (!isRecording) return;
 
-            mr.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
+            if (audio.currentTime >= endTime || audio.paused) {
+                isRecording = false;
+                showStatus("Finalizando archivo...");
 
-            mr.onstop = () => {
-                if (chunks.length === 0) return showError("Error: No se capturaron datos.");
-                const url = URL.createObjectURL(new Blob(chunks, { type: mime }));
+                await videoEncoder.flush();
+                await audioEncoder.flush();
+                muxer.finalize();
+
+                const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${(state.config.meta.song || 'video').replace(/\s+/g, '-')}.webm`;
+                a.download = `${(state.config.meta.song || 'video').replace(/\s+/g, '-')}.mp4`;
                 a.click();
-                showStatus("¡Exportado!");
+
+                showStatus("¡Exportación Exitosa!");
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
+
                 if (callbacks.onComplete) callbacks.onComplete();
-            };
+                return;
+            }
 
-            mr.onerror = (err) => {
-                showError("Error durante la grabación.");
-                if (callbacks.onComplete) callbacks.onComplete();
-            };
+            // Sync indicators
+            const progress = (audio.currentTime - startTime) / (endTime - startTime);
+            const elapsed = (Date.now() - exportStartRealTime) / 1000;
+            const remaining = progress > 0 ? (elapsed / progress) - elapsed : 0;
+            showStatus(`Renderizando: ${(progress * 100).toFixed(1)}% | Quedan: ${Math.round(remaining)}s`);
 
-            mr.start();
-            audio.play();
-            if (state.bgType === 'video') state.backgroundVideo.play();
+            // Capture Frame
+            const timestamp = (audio.currentTime - startTime) * 1_000_000;
+            const frame = new VideoFrame(canvas, { timestamp });
+            videoEncoder.encode(frame, { keyFrame: frameCount % 60 === 0 });
+            frame.close();
+            frameCount++;
 
-            audio.ontimeupdate = () => {
-                const progress = (audio.currentTime - startTime) / (endTime - startTime);
-                const elapsed = (Date.now() - exportStartRealTime) / 1000;
-                const estimatedTotal = elapsed / progress;
-                const remaining = Math.max(0, estimatedTotal - elapsed);
+            requestAnimationFrame(encodeFrame);
+        };
 
-                showStatus(`Renderizando: ${(progress * 100).toFixed(1)}% | Quedan: ${Math.round(remaining)}s`);
-
-                if (audio.currentTime >= endTime) {
-                    audio.pause();
-                    mr.stop();
-                    audio.ontimeupdate = null;
-                }
-            };
-        } catch (e) {
-            showError("No se pudo iniciar la grabadora.");
-            if (callbacks.onComplete) callbacks.onComplete();
-        }
+        audio.play();
+        if (state.bgType === 'video') state.backgroundVideo.play();
+        encodeFrame();
     }
 };
