@@ -409,13 +409,14 @@ function syncBackgroundVideo(now) {
         const actualTime = state.backgroundVideo.currentTime;
         const diff = Math.abs(targetTime - actualTime);
 
-        // If playing, keep it tight. If paused, only sync if the difference is large (manual seek).
-        const threshold = state.isPlayingAudio ? 0.05 : 0.1;
+        // REDUCED LAG: Only seek if drift is > 1.5 seconds when playing.
+        // Frequent seeking (every frame) is extremely heavy.
+        const threshold = state.isPlayingAudio ? 1.5 : 0.1;
         if (diff > threshold) {
             state.backgroundVideo.currentTime = targetTime < 0 ? 0 : targetTime;
         }
 
-        // Ensure video plays/pauses with audio
+        // Sync playback state
         if (state.isPlayingAudio && state.backgroundVideo.paused) {
             state.backgroundVideo.play().catch(() => { });
         } else if (!state.isPlayingAudio && !state.backgroundVideo.paused) {

@@ -32,8 +32,13 @@ export const VideoExporter = {
             initAudioContext();
             showStatus("Configurando codificadores...");
 
-            const muxer = new Mp4Muxer.Muxer({
-                target: new Mp4Muxer.ArrayBufferTarget(),
+            const MuxerClass = window.Mp4Muxer || window.mp4muxer;
+            if (!MuxerClass) {
+                throw new Error("Librería Mp4Muxer no cargada. Revisa tu conexión.");
+            }
+
+            const muxer = new MuxerClass.Muxer({
+                target: new MuxerClass.ArrayBufferTarget(),
                 video: {
                     codec: 'avc1.42E01E',
                     width: canvas.width,
