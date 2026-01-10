@@ -27,6 +27,7 @@ const state = {
     isSyncing: false,
     needsRender: true,
     isExporting: false,
+    isPlayingAudio: false, // New flag for optimization
 
     config: {
         bg: { blur: 0, darken: 50, scale: 1, delay: 0, reactive: false, intensity: 50 },
@@ -39,7 +40,7 @@ const state = {
         viz: { style: 'none', color: '#ffffff' },
         meta: { artist: '', song: '' },
         watermark: { opacity: 0.8 },
-        logo: { x: 50, y: 75, scale: 0.5 },
+        logo: { x: 50, y: 75, scale: 0.5, opacity: 1.0 },
         fx: { particles: false, vignette: false, grain: false },
         export: { fps: 30 }
     },
@@ -69,7 +70,7 @@ function init() {
         'progress-fill', 'volume-slider', 'export-start', 'export-end', 'set-start-btn', 'set-end-btn',
         'progress-track', 'time-code', 'apple-lyrics-input', 'apple-trans-editor',
         'band-logo-upload', 'band-logo-name', 'logo-scale', 'val-logo-scale', 'logo-x', 'val-logo-x',
-        'logo-y', 'val-logo-y', 'export-fps'
+        'logo-y', 'val-logo-y', 'logo-opacity', 'val-logo-opacity', 'val-wm-opacity', 'export-fps'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -87,7 +88,34 @@ function init() {
     setupStyleSelectors();
     setupEvents();
     setupPresets();
+
+    // Recovery Logic
+    const saved = localStorage.getItem('desko_autosave');
+    if (saved) {
+        if (confirm("Se detectó un proyecto guardado. ¿Deseas recuperarlo?")) {
+            const data = JSON.parse(saved);
+            state.syncedLyrics = data.syncedLyrics;
+            state.lyricType = data.lyricType;
+            Object.assign(state.config, data.config);
+            syncUIWithConfig();
+            showStatus("Proyecto recuperado");
+        }
+    }
+
+    // AutoSave Timer (Every 30s)
+    setInterval(saveToLocalStorage, 30000);
+
     requestAnimationFrame(loop);
+}
+
+function saveToLocalStorage() {
+    const data = {
+        syncedLyrics: state.syncedLyrics,
+        config: state.config,
+        lyricType: state.lyricType
+    };
+    localStorage.setItem('desko_autosave', JSON.stringify(data));
+    showStatus("Proyecto autoguardado");
 }
 
 function initAudioContext() {
@@ -146,7 +174,7 @@ function setupEvents() {
 
     // Config Inputs
     const updateConfig = () => {
-        if (!dom['bg-blur']) return; // Guard against non-existent UI
+        if (!dom['bg-blur']) return;
         state.config.bg.blur = parseInt(dom['bg-blur'].value);
         state.config.bg.darken = parseInt(dom['bg-darken'].value);
         state.config.bg.scale = parseInt(dom['bg-scale'].value) / 100;
@@ -187,13 +215,17 @@ function setupEvents() {
         state.config.meta.artist = dom['meta-artist'].value;
         state.config.meta.song = dom['meta-song'].value;
         state.config.watermark.opacity = parseInt(dom['wm-opacity'].value) / 100;
+        if (dom['val-wm-opacity']) dom['val-wm-opacity'].innerText = dom['wm-opacity'].value + '%';
 
         state.config.logo.scale = parseInt(dom['logo-scale'].value) / 100;
         state.config.logo.x = parseInt(dom['logo-x'].value);
         state.config.logo.y = parseInt(dom['logo-y'].value);
+        state.config.logo.opacity = parseInt(dom['logo-opacity'].value) / 100;
+
         if (dom['val-logo-scale']) dom['val-logo-scale'].innerText = dom['logo-scale'].value + '%';
         if (dom['val-logo-x']) dom['val-logo-x'].innerText = dom['logo-x'].value + '%';
         if (dom['val-logo-y']) dom['val-logo-y'].innerText = dom['logo-y'].value + '%';
+        if (dom['val-logo-opacity']) dom['val-logo-opacity'].innerText = dom['logo-opacity'].value + '%';
 
         state.config.export.fps = parseInt(dom['export-fps'].value);
 
@@ -207,7 +239,7 @@ function setupEvents() {
         'text-color', 'accent-color', 'shadow-color', 'font-size', 'trans-color', 'trans-accent',
         'trans-shadow', 'trans-font', 'trans-size', 'particle-color', 'particle-theme', 'particle-size',
         'particle-speed', 'meta-artist', 'meta-song', 'wm-opacity', 'viz-style', 'viz-color',
-        'logo-scale', 'logo-x', 'logo-y', 'export-fps'];
+        'logo-scale', 'logo-x', 'logo-y', 'logo-opacity', 'export-fps'];
 
     inputIds.forEach(id => dom[id]?.addEventListener('input', updateConfig));
     ['fx-particles', 'fx-vignette', 'fx-grain', 'audio-reactive-bg'].forEach(id => dom[id]?.addEventListener('change', updateConfig));
@@ -263,6 +295,10 @@ function setupEvents() {
     dom['band-logo-upload']?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file?.type.startsWith('image/')) return showError("Imagen no válida");
+
+        // Memory Leak Fix
+        if (state.bandLogoImage?.src.startsWith('blob:')) URL.revokeObjectURL(state.bandLogoImage.src);
+
         const img = new Image();
         img.onload = () => { state.bandLogoImage = img; showStatus("Logo de banda cargado"); state.needsRender = true; };
         img.src = URL.createObjectURL(file);
@@ -273,9 +309,14 @@ function setupEvents() {
     dom['watermark-upload'].addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file?.type.startsWith('image/')) return showError("Imagen no válida");
+
+        // Memory Leak Fix
+        if (state.watermarkImage?.src.startsWith('blob:')) URL.revokeObjectURL(state.watermarkImage.src);
+
         const img = new Image();
-        img.onload = () => { state.watermarkImage = img; showStatus("Sello cargado"); };
+        img.onload = () => { state.watermarkImage = img; showStatus("Sello cargado"); state.needsRender = true; };
         img.src = URL.createObjectURL(file);
+        dom['wm-file-name'].textContent = file.name;
     });
 }
 
@@ -323,7 +364,7 @@ function parseAllLyrics() {
 
 function loop() {
     requestAnimationFrame(loop);
-    if (!(state.isPlaying || state.isSyncing || state.needsRender || state.isExporting)) return;
+    if (!(state.isPlayingAudio || state.isSyncing || state.needsRender || state.isExporting)) return;
 
     let avgVol = 0;
     if (state.analyser) {
@@ -390,17 +431,17 @@ function renderFrame(time, avgVol) {
 // Utility UI functions remain in script.js as they interact with DOM
 function togglePlay() {
     initAudioContext();
-    if (state.isPlaying) {
-        state.audio.pause(); state.backgroundVideo.pause(); state.isPlaying = false;
+    if (state.isPlayingAudio) {
+        state.audio.pause(); state.backgroundVideo.pause(); state.isPlayingAudio = false;
         dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-play"></i>';
     } else {
-        state.audio.play(); state.backgroundVideo.play(); state.isPlaying = true;
+        state.audio.play(); state.backgroundVideo.play(); state.isPlayingAudio = true;
         dom['play-pause-btn'].innerHTML = '<i class="fa-solid fa-pause"></i>';
     }
 }
 
 function startSync() {
-    initAudioContext(); state.isSyncing = true; state.audio.currentTime = 0; state.audio.play(); state.isPlaying = true;
+    initAudioContext(); state.isSyncing = true; state.audio.currentTime = 0; state.audio.play(); state.isPlayingAudio = true;
     dom['sync-overlay'].classList.remove('hidden'); updateSyncUI();
 }
 
@@ -412,7 +453,7 @@ function handleTap() {
 
 function endSync() {
     state.isSyncing = false; dom['sync-overlay'].classList.add('hidden');
-    state.audio.pause(); state.isPlaying = false; renderTimelineEditor();
+    state.audio.pause(); state.isPlayingAudio = false; renderTimelineEditor();
 }
 
 function showStatus(msg) { dom['status-msg'].textContent = msg; dom['status-msg'].style.color = 'var(--primary)'; }

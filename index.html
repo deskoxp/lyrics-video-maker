@@ -53,7 +53,7 @@
                             <label for="audio-upload" class="file-card">
                                 <div class="icon"><i class="fa-solid fa-file-audio"></i></div>
                                 <div class="text">
-                                    <span class="title">Subir MP3</span>
+                                    <span class="title">Subir MP3 / M4A</span>
                                     <span class="subtitle" id="file-name">Sin archivo seleccionado</span>
                                 </div>
                                 <input type="file" id="audio-upload" accept="audio/*">
@@ -61,7 +61,40 @@
                         </div>
                     </div>
 
+                    <div class="control-group">
+                        <h3>Contenido de Letras</h3>
+                        <div class="lyrics-tabs">
+                            <button class="lyric-tab-btn active" data-lyric-tab="text">Texto / LRC</button>
+                            <button class="lyric-tab-btn" data-lyric-tab="apple">Apple Karaoke</button>
+                        </div>
 
+                        <div id="lyric-content-text" class="lyric-tab-content active">
+                            <div class="search-box input-with-btn">
+                                <p class="small-info" style="margin-bottom: 5px;">Buscador rápido:</p>
+                                <div class="input-with-btn">
+                                    <input type="text" id="track-search" placeholder="Artista - Canción">
+                                    <button id="search-btn"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                            </div>
+                            <textarea id="lyrics-input" style="height: 120px;"
+                                placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
+                        </div>
+
+                        <div id="lyric-content-apple" class="lyric-tab-content">
+                            <textarea id="apple-lyrics-input" style="height: 120px;"
+                                placeholder='Pega el JSON de Apple Music aquí... {"data": [...]}'></textarea>
+                            <div id="apple-trans-editor" class="apple-trans-editor-container"
+                                style="max-height: 250px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Traducción</h3>
+                        <p class="small-info" style="margin-bottom: 0.5rem">Sincronización línea por línea con el audio.
+                        </p>
+                        <textarea id="lyrics-translation" placeholder="Pega la traducción aquí..."
+                            style="height: 120px;"></textarea>
+                    </div>
                 </div>
 
                 <!-- TAB: BACKGROUND -->
@@ -155,39 +188,8 @@
 
                 <!-- TAB: TEXT & STYLES -->
                 <div class="tab-content" id="tab-text">
-                    <div class="control-grid-2">
-                        <div class="control-group">
-                            <h3>Contenido de Letras</h3>
-                            <div class="lyrics-tabs">
-                                <button class="lyric-tab-btn active" data-lyric-tab="text">Texto / LRC</button>
-                                <button class="lyric-tab-btn" data-lyric-tab="apple">Apple Karaoke</button>
-                            </div>
+                    <!-- Los inputs de letras fueron movidos a la pestaña AUDIO -->
 
-                            <div id="lyric-content-text" class="lyric-tab-content active">
-                                <div class="search-box input-with-btn">
-                                    <input type="text" id="track-search" placeholder="Artista - Canción">
-                                    <button id="search-btn"><i class="fa-solid fa-search"></i></button>
-                                </div>
-                                <textarea id="lyrics-input"
-                                    placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
-                            </div>
-
-                            <div id="lyric-content-apple" class="lyric-tab-content">
-                                <textarea id="apple-lyrics-input"
-                                    placeholder='Pega el JSON de Apple Music aquí... {"data": [...]}'></textarea>
-                                <div id="apple-trans-editor" class="apple-trans-editor-container"
-                                    style="max-height: 200px;"></div>
-                            </div>
-                        </div>
-
-                        <div class="control-group">
-                            <h3>Traducción (Manual)</h3>
-                            <p class="small-info" style="margin-bottom: 0.5rem">Pega línea por línea para sincronizar
-                                con la letra principal.</p>
-                            <textarea id="lyrics-translation" placeholder="Pega la traducción aquí..."
-                                style="height: 180px;"></textarea>
-                        </div>
-                    </div>
 
                     <div class="control-grid-2">
                         <div class="control-group">
@@ -309,8 +311,8 @@
                                 <input type="file" id="watermark-upload" accept="image/png,image/jpeg">
                             </label>
                             <div class="range-group" style="margin-top: 0.5rem">
-                                <label>Opacidad</label>
-                                <input type="range" id="wm-opacity" min="10" max="100" value="80">
+                                <label>Opacidad <span id="val-wm-opacity">80%</span></label>
+                                <input type="range" id="wm-opacity" min="0" max="100" value="80">
                             </div>
                         </div>
                     </div>
@@ -326,14 +328,17 @@
                                 </div>
                                 <input type="file" id="band-logo-upload" accept="image/*">
                             </label>
-                            <div class="logo-controls">
-                                <div class="range-group">
-                                    <label>Escala <span id="val-logo-scale">50%</span></label>
-                                    <input type="range" id="logo-scale" min="10" max="200" value="50">
-                                </div>
+                            <div class="range-group">
+                                <label>Opacidad <span id="val-logo-opacity">100%</span></label>
+                                <input type="range" id="logo-opacity" min="0" max="100" value="100">
                             </div>
                         </div>
-                        <div class="control-grid-2" style="margin-top: 10px;">
+                        <div class="control-grid-3"
+                            style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <div class="range-group">
+                                <label>Escala <span id="val-logo-scale">50%</span></label>
+                                <input type="range" id="logo-scale" min="10" max="200" value="50">
+                            </div>
                             <div class="range-group">
                                 <label>Posición X <span id="val-logo-x">50%</span></label>
                                 <input type="range" id="logo-x" min="0" max="100" value="50">
@@ -417,10 +422,24 @@
 
         <!-- Main Workspace -->
         <main class="workspace">
-            <div class="canvas-container">
-                <canvas id="video-canvas" width="1080" height="1920"></canvas>
+            <div class="work-area">
+                <div class="canvas-container">
+                    <canvas id="video-canvas" width="1080" height="1920"></canvas>
 
-                <!-- Playback Controls Overlay -->
+                    <!-- Sync Overlay -->
+                    <div id="sync-overlay" class="sync-overlay hidden">
+                        <div class="sync-header">GRABANDO SINCRONIZACIÓN</div>
+                        <div class="sync-target-box">
+                            <div class="sync-prev">...</div>
+                            <div class="sync-current" id="sync-current-text">Presiona TAP para iniciar</div>
+                            <div class="sync-next" id="sync-next-text">Próxima línea...</div>
+                        </div>
+                        <button id="tap-btn" class="tap-huge-btn">TAP</button>
+                        <button id="stop-sync-btn" class="stop-sync-btn">Finalizar / Guardar</button>
+                    </div>
+                </div>
+
+                <!-- Playback Controls (Moved out of overlay) -->
                 <div class="playback-bar">
                     <button id="play-pause-btn"><i class="fa-solid fa-play"></i></button>
                     <div class="progress-track" id="progress-track">
@@ -431,18 +450,6 @@
                         <i class="fa-solid fa-volume-high"></i>
                         <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
                     </div>
-                </div>
-
-                <!-- Sync Overlay -->
-                <div id="sync-overlay" class="sync-overlay hidden">
-                    <div class="sync-header">GRABANDO SINCRONIZACIÓN</div>
-                    <div class="sync-target-box">
-                        <div class="sync-prev">...</div>
-                        <div class="sync-current" id="sync-current-text">Presiona TAP para iniciar</div>
-                        <div class="sync-next" id="sync-next-text">Próxima línea...</div>
-                    </div>
-                    <button id="tap-btn" class="tap-huge-btn">TAP</button>
-                    <button id="stop-sync-btn" class="stop-sync-btn">Finalizar / Guardar</button>
                 </div>
             </div>
         </main>

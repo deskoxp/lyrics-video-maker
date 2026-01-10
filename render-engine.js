@@ -81,6 +81,7 @@ export const RenderEngine = {
     drawBandLogo(ctx, w, h, img, config) {
         if (!img) return;
         ctx.save();
+        ctx.globalAlpha = config.opacity || 1.0;
         const targetW = w * config.scale;
         const ir = img.width / img.height;
         const targetH = targetW / ir;
