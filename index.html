@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LyricFlow Pro - Editor de Video</title>
+    <title>DESKOEDITOR V1 - Editor de Video</title>
     <meta name="description" content="Editor profesional de videos con letras para redes sociales.">
     <!-- COI Service Worker for SharedArrayBuffer support -->
     <script src="coi-serviceworker.js"></script>
@@ -32,7 +32,7 @@
         <aside class="sidebar">
             <header class="logo-section">
                 <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
-                <h1>LyricFlow <span class="pro-badge">PRO</span></h1>
+                <h1>DESKOEDITOR <span class="pro-badge">V1</span></h1>
             </header>
 
             <div class="controls-wrapper">
@@ -61,21 +61,7 @@
                         </div>
                     </div>
 
-                    <div class="control-group">
-                        <h3>Letras</h3>
-                        <div class="search-box input-with-btn">
-                            <input type="text" id="track-search" placeholder="Artista - Canción">
-                            <button id="search-btn"><i class="fa-solid fa-search"></i></button>
-                        </div>
-                        <textarea id="lyrics-input"
-                            placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
 
-                        <div class="separator-text">
-                            <span>Opcional: Traducción</span>
-                        </div>
-                        <textarea id="lyrics-translation"
-                            placeholder="Pega la traducción aquí (misma cantidad de líneas)..."></textarea>
-                    </div>
                 </div>
 
                 <!-- TAB: BACKGROUND -->
@@ -139,6 +125,10 @@
                             <label>Escala (Zoom) <span id="val-scale">100%</span></label>
                             <input type="range" id="bg-scale" min="100" max="150" value="100">
                         </div>
+                        <div class="range-group">
+                            <label>Sincronización (Delay) <span id="val-bg-delay">0.0s</span></label>
+                            <input type="range" id="bg-delay" min="-5" max="5" step="0.1" value="0">
+                        </div>
                     </div>
 
                     <div class="control-group">
@@ -165,81 +155,85 @@
 
                 <!-- TAB: TEXT & STYLES -->
                 <div class="tab-content" id="tab-text">
-                    <div class="control-group">
-                        <h3>Estilo Visual</h3>
-                        <div class="style-grid">
-                            <div class="style-option active" data-style="neon">Neon</div>
-                            <div class="style-option" data-style="bold">Bold</div>
-                            <div class="style-option" data-style="serif">Elegant</div>
-                            <div class="style-option" data-style="arcade">Arcade</div>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Animación de Entrada</h3>
-                        <select id="text-animation" class="styled-select">
-                            <option value="fade">Desvanecer (Fade)</option>
-                            <option value="slide-up">Deslizar Arriba</option>
-                            <option value="zoom-in">Zoom In</option>
-                            <option value="typewriter">Máquina de Escribir</option>
-                        </select>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Apariencia</h3>
-                        <div class="color-row">
-                            <div class="color-input">
-                                <label>Texto</label>
-                                <input type="color" id="text-color" value="#ffffff">
+                    <div class="control-grid-2">
+                        <div class="control-group">
+                            <h3>Contenido de Letras</h3>
+                            <div class="lyrics-tabs">
+                                <button class="lyric-tab-btn active" data-lyric-tab="text">Texto / LRC</button>
+                                <button class="lyric-tab-btn" data-lyric-tab="apple">Apple Karaoke</button>
                             </div>
-                            <div class="color-input">
-                                <label>Acento</label>
-                                <input type="color" id="accent-color" value="#00f3ff">
+
+                            <div id="lyric-content-text" class="lyric-tab-content active">
+                                <div class="search-box input-with-btn">
+                                    <input type="text" id="track-search" placeholder="Artista - Canción">
+                                    <button id="search-btn"><i class="fa-solid fa-search"></i></button>
+                                </div>
+                                <textarea id="lyrics-input"
+                                    placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
+                            </div>
+
+                            <div id="lyric-content-apple" class="lyric-tab-content">
+                                <textarea id="apple-lyrics-input"
+                                    placeholder='Pega el JSON de Apple Music aquí... {"data": [...]}'></textarea>
+                                <div id="apple-trans-editor" class="apple-trans-editor-container"
+                                    style="max-height: 200px;"></div>
                             </div>
                         </div>
 
                         <div class="control-group">
-                            <h3>Partículas & Efectos</h3>
-                            <select id="particle-theme" class="styled-select">
-                                <option value="standard">Estándar (Subir)</option>
-                                <option value="fire">Fuego (Intenso)</option>
-                                <option value="snow">Nieve (Caer)</option>
-                                <option value="stars">Estrellas (Parallax)</option>
-                            </select>
-                            <div class="color-row" style="margin-top:0.5rem">
-                                <div class="color-input" style="width:100%">
-                                    <label>Color Partículas</label>
-                                    <input type="color" id="particle-color" value="#ffe400">
+                            <h3>Traducción (Manual)</h3>
+                            <p class="small-info" style="margin-bottom: 0.5rem">Pega línea por línea para sincronizar
+                                con la letra principal.</p>
+                            <textarea id="lyrics-translation" placeholder="Pega la traducción aquí..."
+                                style="height: 180px;"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="control-grid-2">
+                        <div class="control-group">
+                            <h3>Letra Principal</h3>
+                            <div class="color-row">
+                                <div class="color-input">
+                                    <label>Color Base</label>
+                                    <input type="color" id="text-color" value="#ffffff">
+                                </div>
+                                <div class="color-input">
+                                    <label>Acento / Karaoke</label>
+                                    <input type="color" id="accent-color" value="#00f3ff">
+                                </div>
+                                <div class="color-input">
+                                    <label>Sombra / Glow</label>
+                                    <input type="color" id="shadow-color" value="#bc13fe">
                                 </div>
                             </div>
-                            <div class="range-group" style="margin-top: 0.5rem">
-                                <label>Tamaño Partículas <span id="val-part-size">100%</span></label>
-                                <input type="range" id="particle-size" min="50" max="250" value="100">
-                            </div>
-                            <div class="range-group" style="margin-top: 0.5rem">
-                                <label>Velocidad Partículas <span id="val-part-speed">100%</span></label>
-                                <input type="range" id="particle-speed" min="10" max="300" value="100">
+                            <div class="range-group">
+                                <label>Tamaño <span id="val-font-size">50px</span></label>
+                                <input type="range" id="font-size" min="20" max="120" value="50">
                             </div>
                         </div>
 
-                        <div class="color-row">
-                            <div class="color-input" style="flex: 0 0 100%;">
-                                <label>Sombra / Brillo</label>
-                                <input type="color" id="shadow-color" value="#bc13fe" style="width:100%">
+                        <div class="control-group">
+                            <h3>Traducción</h3>
+                            <div class="color-row">
+                                <div class="color-input">
+                                    <label>Color Base</label>
+                                    <input type="color" id="trans-color" value="#f472b6">
+                                </div>
+                                <div class="color-input">
+                                    <label>Acento</label>
+                                    <input type="color" id="trans-accent" value="#ffffff">
+                                </div>
+                                <div class="color-input">
+                                    <label>Sombra</label>
+                                    <input type="color" id="trans-shadow" value="#000000">
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="range-group">
-                            <label>Tamaño Letra Principal</label>
-                            <input type="range" id="font-size" min="20" max="120" value="50">
-                        </div>
-
-                        <!-- Translation Settings -->
-                        <div class="control-group"
-                            style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
-                            <h3>Ajustes Traducción</h3>
+                            <div class="range-group">
+                                <label>Tamaño <span id="val-trans-size">60%</span></label>
+                                <input type="range" id="trans-size" min="30" max="100" value="60">
+                            </div>
                             <div class="input-group">
-                                <label>Fuente Traducción</label>
+                                <label>Fuente de Traducción</label>
                                 <select id="trans-font" class="styled-select">
                                     <option value="inherit">Igual a Principal</option>
                                     <option value="Outfit">Outfit (Moderna)</option>
@@ -248,31 +242,74 @@
                                     <option value="cursive">Manuscrita</option>
                                 </select>
                             </div>
-                            <div class="range-group">
-                                <label>Tamaño Traducción <span id="val-trans-size">60%</span></label>
-                                <input type="range" id="trans-size" min="30" max="100" value="60">
-                            </div>
                         </div>
                     </div>
 
-                    <div class="control-group">
-                        <h3>Información y Marca</h3>
-                        <div class="input-group">
-                            <label>Créditos</label>
-                            <input type="text" id="meta-artist" placeholder="Artista" style="margin-bottom: 0.5rem">
-                            <input type="text" id="meta-song" placeholder="Canción">
+                    <div class="control-grid-2">
+                        <div class="control-group">
+                            <h3>Partículas & Ambiente</h3>
+                            <select id="particle-theme" class="styled-select">
+                                <option value="standard">Estándar (Subir)</option>
+                                <option value="fire">Fuego (Intenso)</option>
+                                <option value="snow">Nieve (Caer)</option>
+                                <option value="stars">Estrellas (Parallax)</option>
+                            </select>
+                            <div class="color-row" style="margin-top:0.75rem">
+                                <div class="color-input" style="width:100%">
+                                    <label>Color Partículas</label>
+                                    <input type="color" id="particle-color" value="#ffe400">
+                                </div>
+                            </div>
+                            <div class="range-group" style="margin-top: 0.5rem">
+                                <label>Tamaño <span id="val-part-size">100%</span></label>
+                                <input type="range" id="particle-size" min="50" max="250" value="100">
+                            </div>
+                            <div class="range-group">
+                                <label>Velocidad <span id="val-part-speed">100%</span></label>
+                                <input type="range" id="particle-speed" min="10" max="300" value="100">
+                            </div>
                         </div>
-                        <div class="input-group">
+
+                        <div class="control-group">
+                            <h3>Estilo & Animación</h3>
+                            <div class="style-grid" style="margin-bottom: 1rem">
+                                <div class="style-option active" data-style="neon">Neon</div>
+                                <div class="style-option" data-style="bold">Bold</div>
+                                <div class="style-option" data-style="serif">Elegant</div>
+                                <div class="style-option" data-style="arcade">Arcade</div>
+                            </div>
+                            <label
+                                style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Animación
+                                de Entrada</label>
+                            <select id="text-animation" class="styled-select">
+                                <option value="fade">Desvanecer (Fade)</option>
+                                <option value="slide-up">Deslizar Arriba</option>
+                                <option value="zoom-in">Zoom In</option>
+                                <option value="typewriter">Máquina de Escribir</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="control-grid-2">
+                        <div class="control-group">
+                            <h3>Créditos y Metadatos</h3>
+                            <div class="input-group">
+                                <input type="text" id="meta-artist" placeholder="Artista" style="margin-bottom: 0.5rem">
+                                <input type="text" id="meta-song" placeholder="Canción">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <h3>Marca de Agua</h3>
                             <label for="watermark-upload" class="file-card">
                                 <div class="icon"><i class="fa-solid fa-stamp"></i></div>
                                 <div class="text">
-                                    <span class="title">Sello de Agua (PNG)</span>
+                                    <span class="title">Sello (PNG)</span>
                                     <span class="subtitle" id="wm-file-name">Opcional</span>
                                 </div>
                                 <input type="file" id="watermark-upload" accept="image/png,image/jpeg">
                             </label>
                             <div class="range-group" style="margin-top: 0.5rem">
-                                <label>Opacidad Sello</label>
+                                <label>Opacidad</label>
                                 <input type="range" id="wm-opacity" min="10" max="100" value="80">
                             </div>
                         </div>
@@ -371,7 +408,10 @@
         </main>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Custom Effects Library (Global) -->
+    <script src="effects.js"></script>
+    <!-- Main Script as Module -->
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
