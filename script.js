@@ -23,7 +23,6 @@ const state = {
     translation: [],
     syncedLyrics: [],
 
-    isPlaying: false,
     isSyncing: false,
     needsRender: true,
     isExporting: false,
@@ -42,7 +41,7 @@ const state = {
         watermark: { opacity: 0.8 },
         logo: { x: 50, y: 75, scale: 0.5, opacity: 1.0 },
         fx: { particles: false, vignette: false, grain: false },
-        export: { fps: 30 }
+        export: { fps: 30, format: 'mp4' }
     },
 
     canvas: null,
@@ -70,7 +69,7 @@ function init() {
         'progress-fill', 'volume-slider', 'export-start', 'export-end', 'set-start-btn', 'set-end-btn',
         'progress-track', 'time-code', 'apple-lyrics-input', 'apple-trans-editor',
         'band-logo-upload', 'band-logo-name', 'logo-scale', 'val-logo-scale', 'logo-x', 'val-logo-x',
-        'logo-y', 'val-logo-y', 'logo-opacity', 'val-logo-opacity', 'val-wm-opacity', 'export-fps'
+        'logo-y', 'val-logo-y', 'logo-opacity', 'val-logo-opacity', 'val-wm-opacity', 'export-fps', 'export-format'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -228,6 +227,7 @@ function setupEvents() {
         if (dom['val-logo-opacity']) dom['val-logo-opacity'].innerText = dom['logo-opacity'].value + '%';
 
         state.config.export.fps = parseInt(dom['export-fps'].value);
+        state.config.export.format = dom['export-format'].value;
 
         state.config.fx.particles = dom['fx-particles'].checked;
         state.config.fx.vignette = dom['fx-vignette'].checked;
@@ -239,7 +239,7 @@ function setupEvents() {
         'text-color', 'accent-color', 'shadow-color', 'font-size', 'trans-color', 'trans-accent',
         'trans-shadow', 'trans-font', 'trans-size', 'particle-color', 'particle-theme', 'particle-size',
         'particle-speed', 'meta-artist', 'meta-song', 'wm-opacity', 'viz-style', 'viz-color',
-        'logo-scale', 'logo-x', 'logo-y', 'logo-opacity', 'export-fps'];
+        'logo-scale', 'logo-x', 'logo-y', 'logo-opacity', 'export-fps', 'export-format'];
 
     inputIds.forEach(id => dom[id]?.addEventListener('input', updateConfig));
     ['fx-particles', 'fx-vignette', 'fx-grain', 'audio-reactive-bg'].forEach(id => dom[id]?.addEventListener('change', updateConfig));
@@ -260,7 +260,7 @@ function setupEvents() {
     dom['preview-btn'].addEventListener('click', () => {
         initAudioContext(); state.audio.currentTime = 0; state.audio.play();
         if (state.bgType === 'video') state.backgroundVideo.play();
-        state.isPlaying = true;
+        state.isPlayingAudio = true;
     });
 
     dom['export-btn'].addEventListener('click', () => {
@@ -274,7 +274,14 @@ function setupEvents() {
     dom['progress-track'].addEventListener('click', (e) => {
         if (!state.audio.duration) return;
         const rect = dom['progress-track'].getBoundingClientRect();
-        state.audio.currentTime = ((e.clientX - rect.left) / rect.width) * state.audio.duration;
+        const seekTime = ((e.clientX - rect.left) / rect.width) * state.audio.duration;
+        state.audio.currentTime = seekTime;
+
+        // Immediate background sync on seek
+        if (state.bgType === 'video' && state.backgroundVideo.duration) {
+            state.backgroundVideo.currentTime = (seekTime + state.config.bg.delay) % state.backgroundVideo.duration;
+        }
+        state.needsRender = true;
     });
 
     dom['volume-slider']?.addEventListener('input', (e) => {
@@ -380,12 +387,12 @@ function loop() {
 }
 
 function syncBackgroundVideo(now) {
-    if (state.bgType === 'video' && state.isPlaying && state.backgroundVideo.duration) {
+    if (state.bgType === 'video' && state.isPlayingAudio && state.backgroundVideo.duration) {
         const targetTime = (now + state.config.bg.delay) % state.backgroundVideo.duration;
         const actualTime = state.backgroundVideo.currentTime;
         const diff = Math.abs(targetTime - actualTime);
-        if (diff > 0.3) {
-            state.backgroundVideo.currentTime = targetTime < 0 ? targetTime + state.backgroundVideo.duration : targetTime;
+        if (diff > 0.1) { // Reduced threshold for better sync
+            state.backgroundVideo.currentTime = targetTime < 0 ? 0 : targetTime;
         }
     }
 }

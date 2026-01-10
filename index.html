@@ -395,6 +395,13 @@
                                 </div>
                             </div>
                             <div class="input-field">
+                                <label>Formato de Salida</label>
+                                <select id="export-format" class="styled-select">
+                                    <option value="mp4" selected>MP4 (Alta Calidad - H.264)</option>
+                                    <option value="webm">WebM (Estándar - MediaRecorder)</option>
+                                </select>
+                            </div>
+                            <div class="input-field">
                                 <label>Calidad (FPS)</label>
                                 <select id="export-fps" class="styled-select">
                                     <option value="24">24 FPS (Cine)</option>
@@ -403,7 +410,8 @@
                                 </select>
                             </div>
                         </div>
-                        <p class="small-info">Deja el tiempo de fin en 0 para grabar hasta el final del audio.</p>
+                        <p class="small-info">MP4 requiere un navegador moderno (Chrome/Edge). Usa WebM si tienes
+                            problemas.</p>
                     </div>
 
                     <div class="export-actions">
