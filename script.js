@@ -271,10 +271,12 @@ function setupEvents() {
         state.isExporting = true;
     });
 
-    dom['progress-track'].addEventListener('click', (e) => {
+    let isDragging = false;
+    const handleSeek = (e) => {
         if (!state.audio.duration) return;
         const rect = dom['progress-track'].getBoundingClientRect();
-        const seekTime = ((e.clientX - rect.left) / rect.width) * state.audio.duration;
+        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const seekTime = percent * state.audio.duration;
         state.audio.currentTime = seekTime;
 
         // Immediate background sync on seek
@@ -282,7 +284,22 @@ function setupEvents() {
             state.backgroundVideo.currentTime = (seekTime + state.config.bg.delay) % state.backgroundVideo.duration;
         }
         state.needsRender = true;
+    };
+
+    dom['progress-track'].addEventListener('mousedown', (e) => {
+        isDragging = true;
+        handleSeek(e);
     });
+
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging) handleSeek(e);
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    dom['progress-track'].addEventListener('click', handleSeek);
 
     dom['volume-slider']?.addEventListener('input', (e) => {
         state.audio.volume = parseFloat(e.target.value);
@@ -387,12 +404,22 @@ function loop() {
 }
 
 function syncBackgroundVideo(now) {
-    if (state.bgType === 'video' && state.isPlayingAudio && state.backgroundVideo.duration) {
+    if (state.bgType === 'video' && state.backgroundVideo.duration) {
         const targetTime = (now + state.config.bg.delay) % state.backgroundVideo.duration;
         const actualTime = state.backgroundVideo.currentTime;
         const diff = Math.abs(targetTime - actualTime);
-        if (diff > 0.1) { // Reduced threshold for better sync
+
+        // If playing, keep it tight. If paused, only sync if the difference is large (manual seek).
+        const threshold = state.isPlayingAudio ? 0.05 : 0.1;
+        if (diff > threshold) {
             state.backgroundVideo.currentTime = targetTime < 0 ? 0 : targetTime;
+        }
+
+        // Ensure video plays/pauses with audio
+        if (state.isPlayingAudio && state.backgroundVideo.paused) {
+            state.backgroundVideo.play().catch(() => { });
+        } else if (!state.isPlayingAudio && !state.backgroundVideo.paused) {
+            state.backgroundVideo.pause();
         }
     }
 }
