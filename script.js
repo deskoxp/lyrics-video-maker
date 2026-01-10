@@ -39,12 +39,15 @@ const state = {
         viz: { style: 'none', color: '#ffffff' },
         meta: { artist: '', song: '' },
         watermark: { opacity: 0.8 },
-        fx: { particles: true, vignette: true, grain: false }
+        logo: { x: 50, y: 75, scale: 0.5 },
+        fx: { particles: false, vignette: false, grain: false },
+        export: { fps: 30 }
     },
 
     canvas: null,
     ctx: null,
     particles: [],
+    bandLogoImage: null,
     popup: { window: null, canvas: null, ctx: null },
     lyricType: 'text'
 };
@@ -64,7 +67,9 @@ function init() {
         'popup-btn', 'export-btn', 'play-pause-btn', 'status-msg', 'video-canvas', 'sync-overlay',
         'tap-btn', 'stop-sync-btn', 'timeline-editor', 'sync-current-text', 'sync-next-text',
         'progress-fill', 'volume-slider', 'export-start', 'export-end', 'set-start-btn', 'set-end-btn',
-        'progress-track', 'time-code', 'apple-lyrics-input', 'apple-trans-editor'
+        'progress-track', 'time-code', 'apple-lyrics-input', 'apple-trans-editor',
+        'band-logo-upload', 'band-logo-name', 'logo-scale', 'val-logo-scale', 'logo-x', 'val-logo-x',
+        'logo-y', 'val-logo-y', 'export-fps'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -182,6 +187,16 @@ function setupEvents() {
         state.config.meta.artist = dom['meta-artist'].value;
         state.config.meta.song = dom['meta-song'].value;
         state.config.watermark.opacity = parseInt(dom['wm-opacity'].value) / 100;
+
+        state.config.logo.scale = parseInt(dom['logo-scale'].value) / 100;
+        state.config.logo.x = parseInt(dom['logo-x'].value);
+        state.config.logo.y = parseInt(dom['logo-y'].value);
+        if (dom['val-logo-scale']) dom['val-logo-scale'].innerText = dom['logo-scale'].value + '%';
+        if (dom['val-logo-x']) dom['val-logo-x'].innerText = dom['logo-x'].value + '%';
+        if (dom['val-logo-y']) dom['val-logo-y'].innerText = dom['logo-y'].value + '%';
+
+        state.config.export.fps = parseInt(dom['export-fps'].value);
+
         state.config.fx.particles = dom['fx-particles'].checked;
         state.config.fx.vignette = dom['fx-vignette'].checked;
         state.config.fx.grain = dom['fx-grain'].checked;
@@ -191,7 +206,8 @@ function setupEvents() {
     const inputIds = ['bg-blur', 'bg-darken', 'bg-scale', 'bg-delay', 'beat-intensity', 'text-animation',
         'text-color', 'accent-color', 'shadow-color', 'font-size', 'trans-color', 'trans-accent',
         'trans-shadow', 'trans-font', 'trans-size', 'particle-color', 'particle-theme', 'particle-size',
-        'particle-speed', 'meta-artist', 'meta-song', 'wm-opacity', 'viz-style', 'viz-color'];
+        'particle-speed', 'meta-artist', 'meta-song', 'wm-opacity', 'viz-style', 'viz-color',
+        'logo-scale', 'logo-x', 'logo-y', 'export-fps'];
 
     inputIds.forEach(id => dom[id]?.addEventListener('input', updateConfig));
     ['fx-particles', 'fx-vignette', 'fx-grain', 'audio-reactive-bg'].forEach(id => dom[id]?.addEventListener('change', updateConfig));
@@ -242,6 +258,16 @@ function setupEvents() {
     });
 
     dom['popup-btn']?.addEventListener('click', openOBSPopup);
+
+    // Band Logo Upload
+    dom['band-logo-upload']?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file?.type.startsWith('image/')) return showError("Imagen no válida");
+        const img = new Image();
+        img.onload = () => { state.bandLogoImage = img; showStatus("Logo de banda cargado"); state.needsRender = true; };
+        img.src = URL.createObjectURL(file);
+        dom['band-logo-name'].textContent = file.name;
+    });
 
     // Watermark
     dom['watermark-upload'].addEventListener('change', (e) => {
@@ -352,6 +378,7 @@ function renderFrame(time, avgVol) {
 
     RenderEngine.drawLyricsBlock(ctx, w, h, time, avgVol, state);
     RenderEngine.drawMetadata(ctx, w, h, cfg.meta);
+    if (state.bandLogoImage) RenderEngine.drawBandLogo(ctx, w, h, state.bandLogoImage, cfg.logo);
     if (state.watermarkImage) RenderEngine.drawWatermark(ctx, w, h, state.watermarkImage, cfg.watermark.opacity);
 
     // Sync to OBS Popup if open

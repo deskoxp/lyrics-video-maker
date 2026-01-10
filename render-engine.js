@@ -78,6 +78,21 @@ export const RenderEngine = {
         ctx.restore();
     },
 
+    drawBandLogo(ctx, w, h, img, config) {
+        if (!img) return;
+        ctx.save();
+        const targetW = w * config.scale;
+        const ir = img.width / img.height;
+        const targetH = targetW / ir;
+
+        // Config.x and y are in percentage (0-100)
+        const posX = (w * config.x / 100) - (targetW / 2);
+        const posY = (h * config.y / 100) - (targetH / 2);
+
+        ctx.drawImage(img, posX, posY, targetW, targetH);
+        ctx.restore();
+    },
+
     drawLyricsBlock(ctx, w, h, time, avgVol, state) {
         let idx = -1;
         const syncedLyrics = state.syncedLyrics;

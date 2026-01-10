@@ -20,7 +20,7 @@ export const VideoExporter = {
             state.backgroundVideo.currentTime = (startTime + state.config.bg.delay) % state.backgroundVideo.duration;
         }
 
-        const stream = canvas.captureStream(60);
+        const stream = canvas.captureStream(state.config.export.fps || 30);
         const dest = state.audioContext.createMediaStreamDestination();
         state.sourceNode.connect(dest);
         state.sourceNode.disconnect(state.analyser);

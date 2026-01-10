@@ -299,7 +299,7 @@
                             </div>
                         </div>
                         <div class="control-group">
-                            <h3>Marca de Agua</h3>
+                            <h3>Marca de Agua (Esquina)</h3>
                             <label for="watermark-upload" class="file-card">
                                 <div class="icon"><i class="fa-solid fa-stamp"></i></div>
                                 <div class="text">
@@ -311,6 +311,36 @@
                             <div class="range-group" style="margin-top: 0.5rem">
                                 <label>Opacidad</label>
                                 <input type="range" id="wm-opacity" min="10" max="100" value="80">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Logo de la Banda (Flotante)</h3>
+                        <div class="control-grid-2">
+                            <label for="band-logo-upload" class="file-card">
+                                <div class="icon"><i class="fa-solid fa-guitar"></i></div>
+                                <div class="text">
+                                    <span class="title">Cargar Logo</span>
+                                    <span class="subtitle" id="band-logo-name">Sin logo</span>
+                                </div>
+                                <input type="file" id="band-logo-upload" accept="image/*">
+                            </label>
+                            <div class="logo-controls">
+                                <div class="range-group">
+                                    <label>Escala <span id="val-logo-scale">50%</span></label>
+                                    <input type="range" id="logo-scale" min="10" max="200" value="50">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-grid-2" style="margin-top: 10px;">
+                            <div class="range-group">
+                                <label>Posición X <span id="val-logo-x">50%</span></label>
+                                <input type="range" id="logo-x" min="0" max="100" value="50">
+                            </div>
+                            <div class="range-group">
+                                <label>Posición Y <span id="val-logo-y">75%</span></label>
+                                <input type="range" id="logo-y" min="0" max="100" value="75">
                             </div>
                         </div>
                     </div>
@@ -337,25 +367,35 @@
 
                     <div class="control-group">
                         <h3>Rango de Grabación</h3>
-                        <div class="range-inputs">
-                            <div class="input-field">
-                                <label>Inicio (seg)</label>
-                                <div class="input-with-btn">
-                                    <input type="number" id="export-start" value="0" step="0.1" min="0">
-                                    <button class="small-btn" id="set-start-btn" title="Usar tiempo actual"><i
-                                            class="fa-solid fa-clock"></i></button>
+                        <div class="control-grid-2">
+                            <div class="range-inputs">
+                                <div class="input-field">
+                                    <label>Inicio (seg)</label>
+                                    <div class="input-with-btn">
+                                        <input type="number" id="export-start" value="0" step="0.1" min="0">
+                                        <button class="small-btn" id="set-start-btn" title="Usar tiempo actual"><i
+                                                class="fa-solid fa-clock"></i></button>
+                                    </div>
+                                </div>
+                                <div class="input-field">
+                                    <label>Fin (seg)</label>
+                                    <div class="input-with-btn">
+                                        <input type="number" id="export-end" value="0" step="0.1" min="0">
+                                        <button class="small-btn" id="set-end-btn" title="Usar tiempo actual"><i
+                                                class="fa-solid fa-clock"></i></button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="input-field">
-                                <label>Fin (seg)</label>
-                                <div class="input-with-btn">
-                                    <input type="number" id="export-end" value="0" step="0.1" min="0">
-                                    <button class="small-btn" id="set-end-btn" title="Usar tiempo actual"><i
-                                            class="fa-solid fa-clock"></i></button>
-                                </div>
+                                <label>Calidad (FPS)</label>
+                                <select id="export-fps" class="styled-select">
+                                    <option value="24">24 FPS (Cine)</option>
+                                    <option value="30" selected>30 FPS (Estándar)</option>
+                                    <option value="60">60 FPS (Fluido)</option>
+                                </select>
                             </div>
                         </div>
-                        <p class="small-info">Deja en 0 para grabar desde el inicio hasta el final.</p>
+                        <p class="small-info">Deja el tiempo de fin en 0 para grabar hasta el final del audio.</p>
                     </div>
 
                     <div class="export-actions">
