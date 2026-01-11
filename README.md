@@ -37,11 +37,12 @@ Editor profesional de videos con letras sincronizadas para redes sociales.
 
 ## 🚀 Cómo Usar
 
-### Opción 1: Abrir Directamente (Recomendado para uso local)
+### Opción 1: Abrir Directamente (Para visualización y edición)
 1. Simplemente abre `index.html` en tu navegador (doble clic)
-2. La aplicación funcionará completamente sin necesidad de servidor
+2. La aplicación funcionará para editar y previsualizar
+3. **Nota**: Para exportar video necesitarás usar la Opción 2
 
-### Opción 2: Con Servidor Local (Recomendado para desarrollo)
+### Opción 2: Con Servidor Local (Recomendado para exportación)
 ```bash
 # Con Python 3
 python -m http.server 8000
@@ -51,6 +52,11 @@ npx http-server
 
 # Luego abre: http://localhost:8000
 ```
+
+**¿Por qué necesito un servidor para exportar?**
+- La exportación MP4 requiere la librería `mp4-muxer` que se carga desde un CDN
+- Los navegadores bloquean las peticiones CDN cuando se usa el protocolo `file://`
+- Con un servidor local (`http://localhost`), todo funciona perfectamente
 
 ## 📖 Guía Rápida
 
@@ -117,6 +123,11 @@ La sincronización del video de fondo ahora usa un sistema adaptativo:
 Puedes ajustar el delay del video en la pestaña **Fondo** → **Sincronización (Delay)** si necesitas compensar algún desfase.
 
 ## 🐛 Solución de Problemas
+
+### El botón de exportar no hace nada o muestra error de Mp4Muxer
+- **Causa**: Estás abriendo el archivo directamente (`file://`) y la librería CDN no se puede cargar
+- **Solución**: Usa un servidor local (ver Opción 2 arriba)
+- **Alternativa**: Cambia el formato a WebM en la pestaña Exportar (no requiere CDN)
 
 ### El video se ve laggeado
 - Asegúrate de que el video no sea demasiado pesado (recomendado: 1080p o menos)
