@@ -395,13 +395,33 @@ const VideoExporter = {
             initAudioContext();
             showStatus("Configurando codificadores...");
 
-            const MuxerClass = window.Mp4Muxer || window.mp4muxer;
-            if (!MuxerClass) {
-                throw new Error("Librería Mp4Muxer no cargada. Revisa tu conexión.");
+            // IMPROVED: Better Mp4Muxer detection for GitHub Pages
+            let MuxerClass = null;
+            let ArrayBufferTargetClass = null;
+
+            // Try multiple ways to access the library (v5.x uses different structure)
+            if (typeof Mp4Muxer !== 'undefined') {
+                // Global Mp4Muxer object (UMD build)
+                MuxerClass = Mp4Muxer.Muxer;
+                ArrayBufferTargetClass = Mp4Muxer.ArrayBufferTarget;
+            } else if (typeof window.Mp4Muxer !== 'undefined') {
+                MuxerClass = window.Mp4Muxer.Muxer;
+                ArrayBufferTargetClass = window.Mp4Muxer.ArrayBufferTarget;
+            } else if (typeof window.Muxer !== 'undefined') {
+                // Direct Muxer export
+                MuxerClass = window.Muxer;
+                ArrayBufferTargetClass = window.ArrayBufferTarget;
             }
 
-            const muxer = new MuxerClass.Muxer({
-                target: new MuxerClass.ArrayBufferTarget(),
+            if (!MuxerClass || !ArrayBufferTargetClass) {
+                console.error("Mp4Muxer library not found. Available globals:", Object.keys(window).filter(k => k.toLowerCase().includes('muxer') || k.toLowerCase().includes('mp4')));
+                throw new Error("Librería Mp4Muxer no cargada. Intenta recargar la página (Ctrl+F5) o usa formato WebM.");
+            }
+
+            console.log("Mp4Muxer found:", MuxerClass);
+
+            const muxer = new MuxerClass({
+                target: new ArrayBufferTargetClass(),
                 video: {
                     codec: 'avc1.42E01E',
                     width: canvas.width,
@@ -712,7 +732,26 @@ function init() {
     setInterval(saveToLocalStorage, 30000);
 
     requestAnimationFrame(loop);
+
+    // Check Mp4Muxer availability for better UX
+    checkMp4MuxerAvailability();
+
     console.log('DESKOEDITOR V1 initialized successfully!');
+}
+
+function checkMp4MuxerAvailability() {
+    setTimeout(() => {
+        const hasMuxer = typeof Mp4Muxer !== 'undefined' ||
+            typeof window.Mp4Muxer !== 'undefined' ||
+            typeof window.mp4muxer !== 'undefined';
+
+        if (!hasMuxer) {
+            console.warn('Mp4Muxer library not detected. MP4 export may not work. WebM export will work fine.');
+            // Don't show error to user, just log it
+        } else {
+            console.log('✅ Mp4Muxer library loaded successfully');
+        }
+    }, 2000); // Wait 2 seconds for CDN to load
 }
 
 function saveToLocalStorage() {
