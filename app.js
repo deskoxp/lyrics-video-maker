@@ -200,9 +200,17 @@ const RenderEngine = {
         const mainLines = this.getLines(ctx, lineObj.text, maxWidth);
         const lineHeightMain = fontSizeMain * 1.25;
 
-        let transLines = [], fontSizeTrans = fontSizeMain * (cfg.transSizePct || 0.6);
+        // IMPROVED: Advanced styling support per line
+        // Calculate overridden values or use defaults
+        const transSizePct = lineObj.transSize || cfg.transSizePct || 0.6;
+        let fontSizeTrans = fontSizeMain * transSizePct;
+        const transFont = lineObj.transFont || cfg.transFont;
+        const effectiveTransFont = transFont === 'inherit' ? fontName : transFont;
+        const transColor = lineObj.transColor || cfg.transColor;
+
+        let transLines = [];
         if (lineObj.trans) {
-            ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
+            ctx.font = `italic 500 ${fontSizeTrans}px "${effectiveTransFont}"`;
             transLines = this.getLines(ctx, lineObj.trans, maxWidth);
         }
 
@@ -219,6 +227,8 @@ const RenderEngine = {
         }
 
         ctx.save();
+
+        // Effects handled by registry
         if (lineObj.effect && lineObj.effect !== 'none' && window.EffectsRegistry?.[lineObj.effect]) {
             window.EffectsRegistry[lineObj.effect](ctx, {
                 w, h, time, avgVol, scale, duration, alpha,
@@ -242,10 +252,10 @@ const RenderEngine = {
             mainLines.forEach((l, i) => ctx.fillText(l, 0, i * lineHeightMain));
         }
 
-        // Translation
+        // Translation with custom styles
         if (transLines.length > 0) {
-            ctx.font = `italic 500 ${fontSizeTrans}px "${cfg.transFont === 'inherit' ? fontName : cfg.transFont}"`;
-            ctx.fillStyle = cfg.transColor;
+            ctx.font = `italic 500 ${fontSizeTrans}px "${effectiveTransFont}"`;
+            ctx.fillStyle = transColor;
             ctx.shadowColor = cfg.transShadow;
             ctx.shadowBlur = 15;
             const transY = (mainLines.length * lineHeightMain) + gap;
@@ -583,7 +593,7 @@ const VideoExporter = {
         if (endTime <= startTime) return showError("Fin debe ser mayor que inicio.");
 
         initAudioContext();
-        showStatus("Iniciando MediaRecorder (WebM)...");
+        showStatus("Iniciando exportación WebM de alta calidad...");
 
         audio.currentTime = startTime;
         if (state.bgType === 'video' && state.backgroundVideo.duration) {
@@ -595,10 +605,22 @@ const VideoExporter = {
         state.sourceNode.connect(dest);
         stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-        let mime = 'video/webm;codecs=vp9';
-        if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+        // IMPROVED: Better codec selection with quality priority
+        let mime = 'video/webm;codecs=vp9,opus';
+        if (!MediaRecorder.isTypeSupported(mime)) {
+            mime = 'video/webm;codecs=vp8,opus';
+        }
+        if (!MediaRecorder.isTypeSupported(mime)) {
+            mime = 'video/webm';
+        }
 
-        const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
+        // IMPROVED: Higher bitrate for better quality (comparable to MP4)
+        const mr = new MediaRecorder(stream, {
+            mimeType: mime,
+            videoBitsPerSecond: 12000000,  // 12 Mbps (higher than before)
+            audioBitsPerSecond: 192000     // 192 kbps audio
+        });
+
         const chunks = [];
         mr.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
         mr.onstop = () => {
@@ -606,21 +628,29 @@ const VideoExporter = {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${(state.config.meta.song || 'video').replace(/\s+/g, '-')}.webm`;
+            const filename = state.config.meta.song || 'video';
+            a.download = `${filename.replace(/\s+/g, '-')}.webm`;
             a.click();
-            showStatus("¡WebM Exportado!");
+            showStatus("¡WebM Exportado con éxito!");
             if (callbacks.onComplete) callbacks.onComplete();
         };
 
-        mr.start();
+        mr.start(100); // Capture in 100ms chunks for smoother recording
         audio.play();
         if (state.bgType === 'video') state.backgroundVideo.play();
 
+        // IMPROVED: Better progress tracking
+        const duration = endTime - startTime;
         audio.ontimeupdate = () => {
-            const progress = (audio.currentTime - startTime) / (endTime - startTime);
-            showStatus(`WebM: ${(progress * 100).toFixed(1)}%...`);
+            const elapsed = audio.currentTime - startTime;
+            const progress = (elapsed / duration) * 100;
+            showStatus(`Exportando WebM: ${progress.toFixed(1)}% (${elapsed.toFixed(1)}s / ${duration.toFixed(1)}s)`);
+
             if (audio.currentTime >= endTime) {
-                audio.pause(); mr.stop(); audio.ontimeupdate = null;
+                audio.pause();
+                mr.stop();
+                audio.ontimeupdate = null;
+                if (state.bgType === 'video') state.backgroundVideo.pause();
             }
         };
     }
@@ -737,6 +767,11 @@ function init() {
     checkMp4MuxerAvailability();
 
     console.log('DESKOEDITOR V1 initialized successfully!');
+
+    // Expose globals for AdvancedEditor
+    window.appState = state;
+    window.appDom = dom;
+    window.appCallbacks = { showStatus, showError, initAudioContext };
 }
 
 function checkMp4MuxerAvailability() {
@@ -1345,6 +1380,18 @@ function renderTimelineEditor() {
 }
 
 function renderAppleTranslationEditor() {
+    // Use the new Advanced Editor instead of the old one
+    if (typeof AdvancedEditor !== 'undefined') {
+        AdvancedEditor.renderAdvancedAppleEditor(state, dom, { showStatus, showError });
+    } else {
+        console.error('AdvancedEditor not loaded');
+        // Fallback to basic editor if advanced editor fails to load
+        renderBasicAppleEditor();
+    }
+}
+
+function renderBasicAppleEditor() {
+    // Fallback basic editor (original implementation)
     const container = dom['apple-trans-editor'];
     if (!container) return;
     container.innerHTML = '<h4 style="margin: 0.5rem 0; font-size: 0.8rem; color: var(--primary);">Traductor de Líneas</h4>';
