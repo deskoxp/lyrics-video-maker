@@ -58,6 +58,22 @@ npx http-server
 - Los navegadores bloquean las peticiones CDN cuando se usa el protocolo `file://`
 - Con un servidor local (`http://localhost`), todo funciona perfectamente
 
+### 🌐 Usando en GitHub Pages
+
+Si estás usando la aplicación desde GitHub Pages y tienes problemas con la exportación MP4:
+
+1. **Opción Recomendada**: Cambia el formato a **WebM**
+   - Ve a la pestaña **Exportar**
+   - En "Formato de Salida", selecciona **WebM**
+   - WebM funciona perfectamente en GitHub Pages sin dependencias externas
+   - Calidad similar a MP4, compatible con la mayoría de plataformas
+
+2. **Si necesitas MP4**:
+   - Asegúrate de que tu conexión a internet esté activa
+   - Recarga la página (Ctrl+F5) para forzar la carga de la librería
+   - Verifica en la consola del navegador (F12) si hay errores de carga
+   - Si el problema persiste, usa WebM y luego convierte a MP4 con herramientas online
+
 ## 📖 Guía Rápida
 
 ### 1. Cargar Audio
