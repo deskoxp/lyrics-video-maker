@@ -1,52 +1,155 @@
-# DESKOEDITOR V1 - Video Lyrics Pro
+# DESKOEDITOR V1 - Editor de Video con Letras
 
-Un editor de video profesional basado en web para la creación de líricas y contenido musical para redes sociales (TikTok, Instagram Reels, YouTube Shorts). Esta herramienta permite sincronizar letras, aplicar efectos visuales dinámicos y exportar en alta calidad.
+Editor profesional de videos con letras sincronizadas para redes sociales.
 
-## 🚀 Características Principales
+## 🔧 Cambios Recientes (2026-01-10)
 
-- **Arquitectura Modular**: Sistema basado en ES Modules para una mejor mantenibilidad (`render-engine`, `lyric-parser`, `video-exporter`).
-- **Exportación MP4 Profesional**: Renderizado de alto rendimiento utilizando **WebCodecs API** y **mp4-muxer** (H.264/AAC).
-- **Control de Calidad**: Selección de FPS personalizable (24fps Cine, 30fps Estándar, 60fps Fluido).
-- **Sistema de Capas Visuales**:
-    - **Fondo**: Soporta imágenes y videos con desenfoque (blur) y oscurecimiento dinámico.
-    - **Letras**: Soporta formato LRC, sincronización manual (TAP) y JSON de Apple Music (Karaoke con sílabas).
-    - **Logo de Banda**: Capa flotante con controles de escala, posición (X/Y) y opacidad.
-    - **Marca de Agua**: Sello personalizado con control de opacidad.
-- **Efectos en Tiempo Real**:
-    - Visualizador de audio reactivo (Barras, Onda, Círculo).
-    - Sistema de partículas personalizable (Nieve, Fuego, Estrellas, Estándar).
-    - Filtros de viñeta y ruido fílmico.
-    - Reactividad al "Beat" de la música.
-- **Utilidades de Usuario**:
-    - **Autoguardado**: Guarda tu proyecto y letras cada 30 segundos localmente.
-    - **Sistema de Presets**: Guarda tus estilos favoritos para usarlos en segundos.
-    - **Modo OBS**: Ventana popup dedicada para captura limpia en software de streaming.
-    - **Limpieza de Memoria**: Gestión inteligente de Blobs para evitar memory leaks.
+### Problemas Solucionados
 
-## 🛠️ Tecnologías Utilizadas
+1. **✅ CRÍTICO: Aplicación no renderizaba**
+   - **Problema**: Los módulos ES6 (`type="module"`) no funcionan con el protocolo `file://` por restricciones CORS del navegador
+   - **Solución**: Se consolidó todo el código en un solo archivo `app.js` sin usar módulos ES6
+   - **Resultado**: La aplicación ahora funciona correctamente al abrirla directamente desde el explorador de archivos
 
-- **Frontend**: HTML5, CSS3 (Vanilla), JavaScript (ES6+).
-- **Librerías**: 
-    - [Anime.js](https://animejs.com/) (Animaciones de UI).
-    - [mp4-muxer](https://github.com/ed-pauley/mp4-muxer) (Contenedor MP4).
-    - WebCodecs API (Codificación de hardware).
-- **Iconos**: Font Awesome 6.
+2. **✅ Sincronización de video mejorada**
+   - **Problema**: El video de fondo se laggeaba y no se sincronizaba correctamente con el audio
+   - **Solución**: 
+     - Implementado sistema de sincronización adaptativa con threshold dinámico (0.2s normal, 0.5s después de seek)
+     - Agregado tracking de última sincronización para evitar seeks excesivos
+     - Mejorada la carga del video con `preload="auto"` y eventos `loadedmetadata`
+   - **Resultado**: Sincronización mucho más fluida y precisa entre audio y video
 
-## 📦 Instalación y Uso
+3. **✅ Renderizado optimizado**
+   - El loop de renderizado ahora se ejecuta continuamente cuando el audio está reproduciéndose
+   - Mejor manejo del estado de reproducción del video de fondo
 
-Debido a que el editor utiliza **ES Modules** y **WebCodecs API**, se requiere un entorno de servidor seguro (`http://localhost` o `https://`).
+## 📋 Características
 
-1. Clona o descarga este repositorio.
-2. Abre la carpeta en tu editor favorito (recomendado **VS Code**).
-3. Utiliza una de las siguientes opciones para ejecutarlo:
-    - **VS Code**: Instala la extensión "Live Server" y pulsa "Go Live".
-    - **Node.js**: Ejecuta `npx serve` en la terminal.
-    - **Python**: Ejecuta `python -m http.server`.
-4. Accede a la URL proporcionada (usualmente `http://127.0.0.1:5500`).
+- ✨ Sincronización precisa de letras con audio
+- 🎬 Soporte para video o imagen de fondo
+- 🎨 Múltiples estilos de texto (Neon, Bold, Elegant, Arcade)
+- 🎭 Efectos visuales (Partículas, Viñeta, Ruido)
+- 🎵 Visualizador de audio (Barras, Onda, Circular)
+- 📝 Soporte para formato LRC y Apple Music Karaoke
+- 🌐 Traducción línea por línea
+- 💾 Autoguardado cada 30 segundos
+- 📤 Exportación a MP4 o WebM
 
-## 📋 Requisitos del Navegador
+## 🚀 Cómo Usar
 
-Se recomienda el uso de navegadores modernos basados en **Chromium** (Google Chrome, Microsoft Edge, Brave) para garantizar la compatibilidad con WebCodecs API y el rendimiento de renderizado.
+### Opción 1: Abrir Directamente (Recomendado para uso local)
+1. Simplemente abre `index.html` en tu navegador (doble clic)
+2. La aplicación funcionará completamente sin necesidad de servidor
+
+### Opción 2: Con Servidor Local (Recomendado para desarrollo)
+```bash
+# Con Python 3
+python -m http.server 8000
+
+# Con Node.js (si tienes http-server instalado)
+npx http-server
+
+# Luego abre: http://localhost:8000
+```
+
+## 📖 Guía Rápida
+
+### 1. Cargar Audio
+- Ve a la pestaña **Audio**
+- Haz clic en "Subir MP3 / M4A" y selecciona tu archivo de audio
+
+### 2. Agregar Fondo
+- Ve a la pestaña **Fondo**
+- Haz clic en "Imagen o Video" y selecciona tu archivo
+- Ajusta el desenfoque, oscuridad, escala y delay según necesites
+
+### 3. Agregar Letras
+- En la pestaña **Audio**, pega tus letras en el área de texto
+- Soporta formato LRC: `[00:12.50]Letra de la canción`
+- O usa el buscador rápido para encontrar letras online
+
+### 4. Sincronizar
+- Ve a la pestaña **Exportar**
+- Haz clic en "Grabar Sincronización"
+- Presiona **ESPACIO** o el botón **TAP** al inicio de cada línea
+- Haz clic en "Finalizar / Guardar" cuando termines
+
+### 5. Personalizar
+- **Pestaña Texto**: Cambia colores, tamaño, efectos de animación
+- **Pestaña Fondo**: Ajusta efectos visuales y visualizador de audio
+- Guarda tus configuraciones favoritas como presets
+
+### 6. Exportar
+- Configura el rango de tiempo (inicio/fin)
+- Selecciona formato (MP4 o WebM) y FPS
+- Haz clic en "Renderizar Video"
+
+## 🎨 Efectos Especiales en Letras
+
+Puedes agregar efectos especiales a líneas específicas usando marcadores:
+
+- `***Texto***` - Efecto Pulse (pulsante)
+- `%%%Texto%%%` - Efecto Glitch (distorsión)
+- `###Texto###` - Efecto Flash (parpadeo)
+
+## 🔧 Archivos Principales
+
+- `index.html` - Interfaz de usuario
+- `app.js` - **NUEVO** - Aplicación consolidada (sin módulos ES6)
+- `effects.js` - Efectos visuales personalizados
+- `style.css` - Estilos de la interfaz
+- `coi-serviceworker.js` - Service Worker para SharedArrayBuffer
+
+### Archivos Antiguos (Ya no se usan)
+- `script.js` - Reemplazado por `app.js`
+- `render-engine.js` - Ahora integrado en `app.js`
+- `lyric-parser.js` - Ahora integrado en `app.js`
+- `video-exporter.js` - Funcionalidad básica en `app.js`
+
+## ⚙️ Configuración de Sincronización de Video
+
+La sincronización del video de fondo ahora usa un sistema adaptativo:
+
+- **Threshold normal**: 0.2 segundos (sincronización precisa durante reproducción)
+- **Threshold post-seek**: 0.5 segundos (evita lag inmediatamente después de adelantar/retroceder)
+- **Tracking de sincronización**: Evita seeks excesivos que causan lag
+
+Puedes ajustar el delay del video en la pestaña **Fondo** → **Sincronización (Delay)** si necesitas compensar algún desfase.
+
+## 🐛 Solución de Problemas
+
+### El video se ve laggeado
+- Asegúrate de que el video no sea demasiado pesado (recomendado: 1080p o menos)
+- Ajusta el delay de sincronización en la pestaña Fondo
+- Prueba con un formato de video más ligero (MP4 H.264)
+
+### Las letras no se sincronizan
+- Verifica que el formato LRC sea correcto: `[MM:SS.mm]Texto`
+- Usa el modo de sincronización manual en la pestaña Exportar
+- Revisa los tiempos en el editor de timeline
+
+### La aplicación no carga
+- Asegúrate de abrir `index.html` (no otros archivos)
+- Verifica que todos los archivos estén en la misma carpeta
+- Revisa la consola del navegador (F12) para ver errores
+
+## 📝 Notas Técnicas
+
+- El canvas renderiza a 1080x1920 (formato vertical para redes sociales)
+- Autoguardado cada 30 segundos en localStorage
+- Soporte para audio reactivo en el fondo
+- Optimizado para Chrome/Edge (recomendado)
+
+## 🎯 Próximas Mejoras
+
+- [ ] Integración completa de video-exporter.js en app.js
+- [ ] Más efectos de texto personalizados
+- [ ] Soporte para múltiples pistas de audio
+- [ ] Exportación con progreso visual
+- [ ] Plantillas predefinidas
 
 ---
-Desarrollado por **Antigravity** para la comunidad de creadores.
+
+**Versión**: 1.0.1  
+**Última actualización**: 2026-01-10  
+**Desarrollado por**: DESKO
