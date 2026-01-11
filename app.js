@@ -746,12 +746,67 @@ function checkMp4MuxerAvailability() {
             typeof window.mp4muxer !== 'undefined';
 
         if (!hasMuxer) {
-            console.warn('Mp4Muxer library not detected. MP4 export may not work. WebM export will work fine.');
-            // Don't show error to user, just log it
+            console.warn('Mp4Muxer library not detected on first check. Attempting dynamic load...');
+            loadMp4MuxerDynamically();
         } else {
             console.log('✅ Mp4Muxer library loaded successfully');
         }
     }, 2000); // Wait 2 seconds for CDN to load
+}
+
+// Dynamic library loader with fallback CDNs
+function loadMp4MuxerDynamically() {
+    const cdnUrls = [
+        'https://unpkg.com/mp4-muxer@5.0.2/build/mp4-muxer.umd.js',
+        'https://cdn.jsdelivr.net/npm/mp4-muxer@5.0.2/build/mp4-muxer.umd.js',
+        'https://cdn.jsdelivr.net/npm/mp4-muxer@4.0.0/build/mp4-muxer.umd.js'
+    ];
+
+    let currentIndex = 0;
+
+    function tryLoadFromCDN(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = () => {
+                console.log(`✅ Mp4Muxer loaded from: ${url}`);
+                resolve(true);
+            };
+            script.onerror = () => {
+                console.warn(`❌ Failed to load from: ${url}`);
+                reject(false);
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    async function loadNext() {
+        if (currentIndex >= cdnUrls.length) {
+            console.error('❌ All CDN attempts failed. Mp4Muxer could not be loaded.');
+            showStatus('MP4 no disponible. Usa formato WebM.');
+            return;
+        }
+
+        try {
+            await tryLoadFromCDN(cdnUrls[currentIndex]);
+            // Verify it actually loaded
+            setTimeout(() => {
+                const hasMuxer = typeof Mp4Muxer !== 'undefined' ||
+                    typeof window.Mp4Muxer !== 'undefined';
+                if (hasMuxer) {
+                    showStatus('✅ Mp4Muxer cargado - MP4 disponible');
+                } else {
+                    currentIndex++;
+                    loadNext();
+                }
+            }, 500);
+        } catch (e) {
+            currentIndex++;
+            loadNext();
+        }
+    }
+
+    loadNext();
 }
 
 function saveToLocalStorage() {
