@@ -1012,11 +1012,23 @@ function setupTabs() {
         b.classList.add('active'); document.getElementById(`tab-${b.dataset.tab}`).classList.add('active');
     }));
     document.querySelectorAll('.lyric-tab-btn').forEach(b => b.addEventListener('click', () => {
-        document.querySelectorAll('.lyric-tab-btn, .lyric-tab-content').forEach(el => el.classList.remove('active'));
-        b.classList.add('active'); document.getElementById(`lyric-content-${b.dataset.lyricTab}`).classList.add('active');
-        state.lyricType = b.dataset.lyricTab; parseAllLyrics();
+        const tab = b.dataset.lyricTab;
+        document.querySelectorAll('.lyric-tab-btn, .lyric-tab-item').forEach(el => el.classList.remove('active'));
+        b.classList.add('active');
+
+        // Activate inputs in Sidebar 1
+        const inputArea = document.getElementById(`lyric-input-area-${tab}`);
+        if (inputArea) inputArea.classList.add('active');
+
+        // Activate translation in Sidebar 2
+        const transArea = document.getElementById(`lyric-trans-area-${tab}`);
+        if (transArea) transArea.classList.add('active');
+
+        state.lyricType = tab;
+        parseAllLyrics();
     }));
 }
+
 
 function setupStyleSelectors() {
     document.querySelectorAll('.style-option').forEach(opt => opt.addEventListener('click', () => {

@@ -37,26 +37,27 @@ body {
 
 /* --- SIDEBAR --- */
 .sidebar {
-    width: 350px;
+    flex: 1;
+    min-width: 300px;
     background-color: var(--bg-panel);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     z-index: 20;
     box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4);
-    flex-shrink: 0;
 }
 
 .sidebar-secondary {
-    width: 450px;
+    flex: 1;
+    min-width: 300px;
     background-color: #1a1a1e;
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     z-index: 15;
     box-shadow: 10px 0 20px rgba(0, 0, 0, 0.2);
-    flex-shrink: 0;
 }
+
 
 .sidebar-header {
     padding: 1.25rem;
@@ -330,14 +331,17 @@ textarea {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.lyric-tab-content {
+.lyric-tab-content,
+.lyric-tab-item {
     display: none;
 }
 
-.lyric-tab-content.active {
+.lyric-tab-content.active,
+.lyric-tab-item.active {
     display: block;
     animation: fadeIn 0.2s ease;
 }
+
 
 /* --- APPLE TRANS EDITOR --- */
 .apple-trans-editor-container {
@@ -714,8 +718,9 @@ canvas {
 }
 
 .playback-bar {
-    width: 600px;
-    /* Fixed width for better control */
+    width: 90%;
+    max-width: 600px;
+
     background: rgba(22, 22, 26, 0.9);
     backdrop-filter: blur(10px);
     border-radius: 50px;
