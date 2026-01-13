@@ -48,7 +48,7 @@
                     <button class="tab-btn" data-tab="export"><i class="fa-solid fa-clapperboard"></i> Exportar</button>
                 </div>
 
-                <!-- TAB: MUSIC & LYRICS -->
+                <!-- TAB: SETTINGS & AUDIO -->
                 <div class="tab-content active" id="tab-music">
                     <div class="control-group">
                         <h3>Fuente de Audio</h3>
@@ -63,42 +63,8 @@
                             </label>
                         </div>
                     </div>
-
-                    <div class="control-group">
-                        <h3>Contenido de Letras</h3>
-                        <div class="lyrics-tabs">
-                            <button class="lyric-tab-btn active" data-lyric-tab="text">Texto / LRC</button>
-                            <button class="lyric-tab-btn" data-lyric-tab="apple">Apple Karaoke</button>
-                        </div>
-
-                        <div id="lyric-content-text" class="lyric-tab-content active">
-                            <div class="search-box input-with-btn">
-                                <p class="small-info" style="margin-bottom: 5px;">Buscador rápido:</p>
-                                <div class="input-with-btn">
-                                    <input type="text" id="track-search" placeholder="Artista - Canción">
-                                    <button id="search-btn"><i class="fa-solid fa-search"></i></button>
-                                </div>
-                            </div>
-                            <textarea id="lyrics-input" style="height: 120px;"
-                                placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
-                        </div>
-
-                        <div id="lyric-content-apple" class="lyric-tab-content">
-                            <textarea id="apple-lyrics-input" style="height: 120px;"
-                                placeholder='Pega el JSON de Apple Music aquí... {"data": [...]}'></textarea>
-                            <div id="apple-trans-editor" class="apple-trans-editor-container"
-                                style="max-height: 250px;"></div>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>Traducción</h3>
-                        <p class="small-info" style="margin-bottom: 0.5rem">Sincronización línea por línea con el audio.
-                        </p>
-                        <textarea id="lyrics-translation" placeholder="Pega la traducción aquí..."
-                            style="height: 120px;"></textarea>
-                    </div>
                 </div>
+
 
                 <!-- TAB: BACKGROUND -->
                 <div class="tab-content" id="tab-background">
@@ -218,18 +184,14 @@
                         </div>
 
                         <div class="control-group">
-                            <h3>Traducción</h3>
+                            <h3>Traducción (Global)</h3>
                             <div class="color-row">
                                 <div class="color-input">
-                                    <label>Color Base</label>
+                                    <label>Color</label>
                                     <input type="color" id="trans-color" value="#f472b6">
                                 </div>
                                 <div class="color-input">
-                                    <label>Acento</label>
-                                    <input type="color" id="trans-accent" value="#ffffff">
-                                </div>
-                                <div class="color-input">
-                                    <label>Sombra</label>
+                                    <label>Glow</label>
                                     <input type="color" id="trans-shadow" value="#000000">
                                 </div>
                             </div>
@@ -237,17 +199,8 @@
                                 <label>Tamaño <span id="val-trans-size">60%</span></label>
                                 <input type="range" id="trans-size" min="30" max="100" value="60">
                             </div>
-                            <div class="input-group">
-                                <label>Fuente de Traducción</label>
-                                <select id="trans-font" class="styled-select">
-                                    <option value="inherit">Igual a Principal</option>
-                                    <option value="Outfit">Outfit (Moderna)</option>
-                                    <option value="serif">Elegant (Serif)</option>
-                                    <option value="Courier New">Retro (Mono)</option>
-                                    <option value="cursive">Manuscrita</option>
-                                </select>
-                            </div>
                         </div>
+
                     </div>
 
                     <div class="control-grid-2">
@@ -428,6 +381,51 @@
 
             </div>
         </aside>
+
+        <!-- Secondary Sidebar: Lyrics & Translation Editor -->
+        <aside class="sidebar-secondary">
+            <header class="sidebar-header">
+                <h2><i class="fa-solid fa-closed-captioning"></i> Letras y Traducciones</h2>
+            </header>
+
+            <div class="secondary-content">
+                <div class="control-group">
+                    <h3>Modo de Letras</h3>
+                    <div class="lyrics-tabs">
+                        <button class="lyric-tab-btn active" data-lyric-tab="text">Texto / LRC</button>
+                        <button class="lyric-tab-btn" data-lyric-tab="apple">Apple Karaoke</button>
+                    </div>
+
+                    <div id="lyric-content-text" class="lyric-tab-content active">
+                        <div class="search-box input-with-btn">
+                            <p class="small-info" style="margin-bottom: 5px;">Buscador rápido:</p>
+                            <div class="input-with-btn">
+                                <input type="text" id="track-search" placeholder="Artista - Canción">
+                                <button id="search-btn"><i class="fa-solid fa-search"></i></button>
+                            </div>
+                        </div>
+                        <textarea id="lyrics-input" style="height: 120px;"
+                            placeholder="Pega tu letra aquí... Soporta formato LRC con tiempos [00:12.50]"></textarea>
+
+                        <div class="control-group"
+                            style="margin-top: 1rem; padding: 0; border: none; background: transparent;">
+                            <h3>Traducción (LRC)</h3>
+                            <textarea id="lyrics-translation" placeholder="Pega la traducción aquí..."
+                                style="height: 120px;"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="lyric-content-apple" class="lyric-tab-content">
+                        <div class="input-group">
+                            <textarea id="apple-lyrics-input" style="height: 80px;"
+                                placeholder='Pega el JSON de Apple Music aquí...'></textarea>
+                        </div>
+                        <div id="apple-trans-editor" class="apple-trans-editor-container"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
 
         <!-- Main Workspace -->
         <main class="workspace">

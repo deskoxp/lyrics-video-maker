@@ -75,163 +75,87 @@ const AdvancedEditor = {
 
     createInstrumentalEditor(line, index, state) {
         const editor = document.createElement('div');
-        editor.className = 'instrumental-editor';
+        editor.className = 'instrumental-editor minimal';
         editor.innerHTML = `
-            <div class="instrumental-icon">🎵</div>
-            <div class="time-controls">
-                <div class="time-input-group">
-                    <label>Inicio (s)</label>
-                    <input type="number" step="0.1" value="${line.time.toFixed(2)}" 
-                           onchange="AdvancedEditor.updateLineTime(${index}, 'time', this.value)">
-                </div>
-                <div class="time-input-group">
-                    <label>Fin (s)</label>
-                    <input type="number" step="0.1" value="${(line.endTime || line.time + 3).toFixed(2)}" 
-                           onchange="AdvancedEditor.updateLineTime(${index}, 'endTime', this.value)">
-                </div>
+            <div class="instrumental-icon small">🎵 Instrumental</div>
+            <div class="time-minimal">
+                <input type="number" step="0.1" value="${line.time.toFixed(1)}" 
+                       onchange="AdvancedEditor.updateLineTime(${index}, 'time', this.value)">
+                <span>a</span>
+                <input type="number" step="0.1" value="${(line.endTime || line.time + 3).toFixed(1)}" 
+                       onchange="AdvancedEditor.updateLineTime(${index}, 'endTime', this.value)">
             </div>
         `;
         return editor;
     },
+
 
     createLyricEditor(line, index, state, callbacks) {
         const editor = document.createElement('div');
-        editor.className = 'lyric-editor';
+        editor.className = 'lyric-editor minimal';
 
-        // Original lyrics (English) - Editable
-        const originalSection = document.createElement('div');
-        originalSection.className = 'lyric-section original';
-        originalSection.innerHTML = `
-            <label class="section-label">
-                <i class="fa-solid fa-language"></i> Letra Original (Inglés)
-            </label>
-            <textarea class="lyric-textarea original-text" 
-                      placeholder="Letra original en inglés..."
-                      onchange="AdvancedEditor.updateOriginalText(${index}, this.value)">${line.text || ''}</textarea>
-        `;
-        editor.appendChild(originalSection);
-
-        // Translation - Editable with more options
-        const translationSection = document.createElement('div');
-        translationSection.className = 'lyric-section translation';
-        translationSection.innerHTML = `
-            <label class="section-label">
-                <i class="fa-solid fa-globe"></i> Traducción (Español)
-            </label>
-            <textarea class="lyric-textarea translation-text" 
-                      placeholder="Traducción al español..."
-                      onchange="AdvancedEditor.updateTranslation(${index}, this.value)">${line.trans || ''}</textarea>
-            
-            <div class="translation-options">
-                <div class="option-group">
-                    <label>Tamaño</label>
-                    <select onchange="AdvancedEditor.updateLineStyle(${index}, 'transSize', this.value)">
-                        <option value="0.4" ${line.transSize === 0.4 ? 'selected' : ''}>40%</option>
-                        <option value="0.5" ${line.transSize === 0.5 ? 'selected' : ''}>50%</option>
-                        <option value="0.6" ${!line.transSize || line.transSize === 0.6 ? 'selected' : ''}>60% (Default)</option>
-                        <option value="0.7" ${line.transSize === 0.7 ? 'selected' : ''}>70%</option>
-                        <option value="0.8" ${line.transSize === 0.8 ? 'selected' : ''}>80%</option>
-                        <option value="1.0" ${line.transSize === 1.0 ? 'selected' : ''}>100%</option>
-                    </select>
-                </div>
-                <div class="option-group">
-                    <label>Color</label>
-                    <input type="color" value="${line.transColor || '#f472b6'}" 
-                           onchange="AdvancedEditor.updateLineStyle(${index}, 'transColor', this.value)">
-                </div>
-                <div class="option-group">
-                    <label>Fuente</label>
-                    <select onchange="AdvancedEditor.updateLineStyle(${index}, 'transFont', this.value)">
-                        <option value="inherit" ${!line.transFont || line.transFont === 'inherit' ? 'selected' : ''}>Igual a principal</option>
-                        <option value="Outfit" ${line.transFont === 'Outfit' ? 'selected' : ''}>Outfit</option>
-                        <option value="serif" ${line.transFont === 'serif' ? 'selected' : ''}>Serif</option>
-                        <option value="Courier New" ${line.transFont === 'Courier New' ? 'selected' : ''}>Mono</option>
-                        <option value="cursive" ${line.transFont === 'cursive' ? 'selected' : ''}>Cursiva</option>
-                    </select>
-                </div>
+        // Compact Text Section
+        const textSection = document.createElement('div');
+        textSection.className = 'compact-text-section';
+        textSection.innerHTML = `
+            <div class="input-pair">
+                <textarea class="lyric-textarea small original-text" 
+                          placeholder="Texto Original..."
+                          onchange="AdvancedEditor.updateOriginalText(${index}, this.value)">${line.text || ''}</textarea>
+                <textarea class="lyric-textarea small translation-text" 
+                          placeholder="Traducción..."
+                          onchange="AdvancedEditor.updateTranslation(${index}, this.value)">${line.trans || ''}</textarea>
             </div>
         `;
-        editor.appendChild(translationSection);
+        editor.appendChild(textSection);
 
-        // Effects section
-        const effectsSection = document.createElement('div');
-        effectsSection.className = 'lyric-section effects';
-        effectsSection.innerHTML = `
-            <label class="section-label">
-                <i class="fa-solid fa-sparkles"></i> Efectos Visuales
-            </label>
-            <div class="effects-grid">
-                <div class="effect-option ${!line.effect || line.effect === 'none' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'none')">
-                    <i class="fa-solid fa-ban"></i>
-                    <span>Sin efecto</span>
-                </div>
-                <div class="effect-option ${line.effect === 'pulse' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'pulse')">
-                    <i class="fa-solid fa-heart-pulse"></i>
-                    <span>Pulse</span>
-                </div>
-                <div class="effect-option ${line.effect === 'glitch' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'glitch')">
-                    <i class="fa-solid fa-bolt"></i>
-                    <span>Glitch</span>
-                </div>
-                <div class="effect-option ${line.effect === 'flash' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'flash')">
-                    <i class="fa-solid fa-sun"></i>
-                    <span>Flash</span>
-                </div>
-                <div class="effect-option ${line.effect === 'neon_flicker' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'neon_flicker')">
-                    <i class="fa-solid fa-lightbulb"></i>
-                    <span>Neon</span>
-                </div>
-                <div class="effect-option ${line.effect === 'rainbow' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'rainbow')">
-                    <i class="fa-solid fa-rainbow"></i>
-                    <span>Rainbow</span>
-                </div>
-                <div class="effect-option ${line.effect === 'shake' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'shake')">
-                    <i class="fa-solid fa-earthquake"></i>
-                    <span>Shake</span>
-                </div>
-                <div class="effect-option ${line.effect === 'floating' ? 'active' : ''}" 
-                     onclick="AdvancedEditor.setEffect(${index}, 'floating')">
-                    <i class="fa-solid fa-cloud"></i>
-                    <span>Floating</span>
-                </div>
+        // Minimal Controls Row
+        const controlsRow = document.createElement('div');
+        controlsRow.className = 'minimal-controls-row';
+        controlsRow.innerHTML = `
+            <div class="control-item">
+                <label><i class="fa-solid fa-sparkles"></i></label>
+                <select class="minimal-select" onchange="AdvancedEditor.setEffect(${index}, this.value)">
+                    <option value="none" ${!line.effect || line.effect === 'none' ? 'selected' : ''}>Sin Efecto</option>
+                    <option value="pulse" ${line.effect === 'pulse' ? 'selected' : ''}>Pulse</option>
+                    <option value="glitch" ${line.effect === 'glitch' ? 'selected' : ''}>Glitch</option>
+                    <option value="flash" ${line.effect === 'flash' ? 'selected' : ''}>Flash</option>
+                    <option value="neon_flicker" ${line.effect === 'neon_flicker' ? 'selected' : ''}>Neon</option>
+                    <option value="rainbow" ${line.effect === 'rainbow' ? 'selected' : ''}>Rainbow</option>
+                    <option value="shake" ${line.effect === 'shake' ? 'selected' : ''}>Shake</option>
+                    <option value="floating" ${line.effect === 'floating' ? 'selected' : ''}>Floating</option>
+                </select>
             </div>
-        `;
-        editor.appendChild(effectsSection);
-
-        // Timing controls
-        const timingSection = document.createElement('div');
-        timingSection.className = 'lyric-section timing';
-        timingSection.innerHTML = `
-            <label class="section-label">
-                <i class="fa-solid fa-clock"></i> Sincronización
-            </label>
-            <div class="timing-controls">
-                <div class="time-input-group">
-                    <label>Inicio (s)</label>
-                    <input type="number" step="0.1" value="${line.time.toFixed(2)}" 
-                           onchange="AdvancedEditor.updateLineTime(${index}, 'time', this.value)">
-                </div>
-                <div class="time-input-group">
-                    <label>Fin (s)</label>
-                    <input type="number" step="0.1" value="${(line.endTime || line.time + 3).toFixed(2)}" 
-                           onchange="AdvancedEditor.updateLineTime(${index}, 'endTime', this.value)">
-                </div>
-                <button class="btn-small" onclick="AdvancedEditor.setToCurrentTime(${index})">
-                    <i class="fa-solid fa-crosshairs"></i> Usar tiempo actual
-                </button>
+            <div class="control-item">
+                <label>Pts</label>
+                <select class="minimal-select" onchange="AdvancedEditor.updateLineStyle(${index}, 'transSize', this.value)">
+                    <option value="0.4" ${line.transSize === 0.4 ? 'selected' : ''}>40%</option>
+                    <option value="0.5" ${line.transSize === 0.5 ? 'selected' : ''}>50%</option>
+                    <option value="0.6" ${!line.transSize || line.transSize === 0.6 ? 'selected' : ''}>60%</option>
+                    <option value="0.8" ${line.transSize === 0.8 ? 'selected' : ''}>80%</option>
+                    <option value="1.0" ${line.transSize === 1.0 ? 'selected' : ''}>100%</option>
+                </select>
             </div>
+            <div class="control-item">
+                <input type="color" class="minimal-color" value="${line.transColor || '#f472b6'}" 
+                       onchange="AdvancedEditor.updateLineStyle(${index}, 'transColor', this.value)">
+            </div>
+            <div class="control-item time-minimal">
+                <input type="number" step="0.1" value="${line.time.toFixed(1)}" 
+                       onchange="AdvancedEditor.updateLineTime(${index}, 'time', this.value)">
+                <span>a</span>
+                <input type="number" step="0.1" value="${(line.endTime || line.time + 3).toFixed(1)}" 
+                       onchange="AdvancedEditor.updateLineTime(${index}, 'endTime', this.value)">
+            </div>
+            <button class="icon-btn-small" onclick="AdvancedEditor.setToCurrentTime(${index})" title="Tiempo Actual">
+                <i class="fa-solid fa-clock"></i>
+            </button>
         `;
-        editor.appendChild(timingSection);
+        editor.appendChild(controlsRow);
 
         return editor;
     },
+
 
     // Helper methods
     formatTime(seconds) {
